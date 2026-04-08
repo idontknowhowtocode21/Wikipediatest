@@ -53,6 +53,17 @@ body {
     z-index: 100;
 }
 
+#debug-log {
+    position: fixed;
+    bottom: 5px;
+    left: 10px;
+    font-size: 10px;
+    color: #cccccc; /* Very faint grey */
+    z-index: 100;
+    font-family: monospace;
+    pointer-events: none; /* So it doesn't block your taps */
+}
+
 /* Invisible Tap Overlay */
 #tap-overlay {
     position: fixed;
