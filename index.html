@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Keep Notes</title>
+    <style>
+        body { font-family: 'Roboto', sans-serif; background: #ffffff; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        #header { display: flex; align-items: center; padding: 15px; border-bottom: 1px solid #e0e0e0; }
+        #back-icon { font-size: 24px; margin-right: 20px; color: #5f6368; }
+        #title-input { border: none; outline: none; font-size: 22px; flex-grow: 1; color: #202124; }
+        #note-body { border: none; outline: none; padding: 20px; font-size: 16px; flex-grow: 1; line-height: 1.6; color: #3c4043; resize: none; }
+        
+        /* The Secret HUD */
+        #status-dot { position: fixed; top: 10px; right: 10px; width: 6px; height: 6px; border-radius: 50%; background: transparent; transition: 0.3s; z-index: 100; }
+        
+        /* Tap Zones */
+        #tap-overlay { position: fixed; top: 150px; left: 0; width: 100%; bottom: 0; display: none; z-index: 10; display: flex; }
+        .zone { flex: 1; height: 100%; }
+
+        /* Acrostic Formatting */
+        .reveal-text { font-family: 'serif'; font-style: italic; }
+    </style>
+</head>
+<body>
+
+<div id="status-dot" title="Long press back icon to input URL"></div>
+
+<div id="header">
+    <span id="back-icon" oncontextmenu="secretTrigger(event)">←</span>
+    <input type="text" id="title-input" placeholder="Title">
+</div>
+
+<textarea id="note-body" placeholder="Note"></textarea>
+
+<div id="tap-overlay" style="display:none;">
+    <div class="zone" onclick="inputShape(0)"></div> <div class="zone" onclick="inputShape(1)"></div> <div class="zone" onclick="inputShape(2)"></div> </div>
+
+<script>
+    let dictionary = {};
+    let currentWordLength = 0;
+    let inputSequence = "";
+
+    const shapeMap = {
+        'A':0,'E':0,'F':0,'H':0,'I':0,'K':0,'L':0,'M':0,'N':0,'T':0,'V':0,'W':0,'X':0,'Y':0,'Z':0,
+        'C':1,'O':1,'S':1,
+        'B':2,'D':2,'G':2,'J':2,'P':2,'Q':2,'R':2,'U':2
+    };
+
+    // Wordsmith Acrostic Dictionary
+    const fillers = {
+        'A': 'Apple', 'B': 'Blue', 'C': 'Cold', 'D': 'Dark', 'E': 'East', 'F': 'Fire', 'G': 'Gold',
+        'H': 'High', 'I': 'Iron', 'J': 'Just', 'K': 'Kind', 'L': 'Long', 'M': 'Moon', 'N': 'Next',
+        'O': 'Open', 'P': 'Past', 'Q': 'Quiet', 'R': 'Red', 'S': 'Star', 'T': 'Time', 'U': 'Under',
+        'V': 'View', 'W': 'West', 'X': 'Xray', 'Y': 'Year', 'Z': 'Zero'
+    };
+
+    // 1. Wikipedia Deep Scraper
+    async function fetchWiki(url) {
+        try {
+            const title = url.split('wiki/')[1].split('#')[0];
+            const api = `https://en.wikipedia.org/w/api.php?action=parse&page=${title}&prop=text&format=json&origin=*`;
+            
+            const response = await fetch(api);
+            const data = await response.json();
+            const rawHtml = data.parse.text["*"];
+            const tempDiv = document.createElement("div");
+            tempDiv.innerHTML = rawHtml;
+            
+            // Remove citations, tables, and scripts
+            const toRemove = tempDiv.querySelectorAll('sup, .mw-editsection, table, script, style');
+            toRemove.forEach(el => el.remove());
+
+            const cleanText = tempDiv.innerText.toUpperCase();
+            const words = cleanText.match(/[A-Z]{3,}/g); 
+
+            dictionary = {};
+            words.forEach(word => {
+                const len = word.length;
+                const hash = word.split('').map(char => shapeMap[char] ?? '').join('');
+                if (!dictionary[len]) dictionary[len] = {};
+                // We keep the word if it's new to this hash
+                if (!dictionary[len][hash]) dictionary[len][hash] = word;
+            });
+
+            document.getElementById('status-dot').style.background = "#4CAF50"; 
+            vibrate(50); // Small buzz to confirm load
+        } catch (e) {
+            alert("Error loading page. Check URL.");
+        }
+    }
+
+    function secretTrigger(e) {
+        e.preventDefault();
+        const url = prompt("Paste Wikipedia Article Link:");
+        if (url) fetchWiki(url);
+    }
+
+    function vibrate(ms) {
+        if (navigator.vibrate) navigator.vibrate(ms);
+    }
+
+    // 2. Title Logic (Setting length)
+    document.getElementById('title-input').addEventListener('input', (e) => {
+        const val = e.target.value;
+        if (!isNaN(val) && val !== "") {
+            currentWordLength = parseInt(val);
+            document.getElementById('tap-overlay').style.display = "flex";
+            document.getElementById('note-body').value = "Thinking...";
+            inputSequence = "";
+        } else {
+            document.getElementById('tap-overlay').style.display = "none";
+        }
+    });
+
+    // 3. Inputting Shapes
+    function inputShape(val) {
+        vibrate(20);
+        inputSequence += val;
+
+        if (inputSequence.length === currentWordLength) {
+            revealAcrostic();
+        }
+    }
+
+    // 4. The Reveal
+    function revealAcrostic() {
+        const foundWord = dictionary[currentWordLength]?.[inputSequence];
+        const display = document.getElementById('note-body');
+        
+        if (foundWord) {
+            const acrostic = foundWord.split('').map(letter => {
+                return fillers[letter] || letter;
+            }).join('\n');
+
+            display.value = `I'm seeing a few possibilities:\n\n${acrostic}\n\nNone of these? Look closer...`;
+        } else {
+            display.value = "I'm having trouble connecting. Focus on the letters again.";
+        }
+        
+        document.getElementById('tap-overlay').style.display = "none";
+        document.getElementById('title-input').value = "My Guesses"; // Overwrite the number
+    }
+</script>
+</body>
+</html>
