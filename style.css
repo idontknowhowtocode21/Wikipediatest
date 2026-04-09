@@ -43,7 +43,8 @@ body {
     font-size: 16px; line-height: 1.6; white-space: pre-wrap;
 }
 
-.reveal-line span { text-decoration: underline; font-weight: bold; }
+/* Acrostic Styling */
+#note-body div span { text-decoration: underline; font-weight: bold; }
 
 .footer { flex-shrink: 0; padding-bottom: env(safe-area-inset-bottom); background: var(--bg-black); }
 .toolbar { display: flex; justify-content: space-between; align-items: center; padding: 8px 24px 16px 24px; }
