@@ -1,7 +1,16 @@
+/**
+ * WORDSMITH PERFORMANCE ENGINE v5.0
+ * Features: Full-Page Query, Positional Fishing, Appearance Sorting, 
+ * 4-Way Long-Press Divination, and Exact-Length Acrostic.
+ */
+
 let dictionary = {};
 let inputSequence = "";
 let currentArticle = "READY";
 let possibleWords = [];
+let wordOrderMap = [];
+let noCount = 0;
+let longPressTimer;
 
 const shapeMap = {
     'A':0,'E':0,'F':0,'H':0,'I':0,'K':0,'L':0,'M':0,'N':0,'T':0,'V':0,'W':0,'X':0,'Y':0,'Z':0,
@@ -9,6 +18,7 @@ const shapeMap = {
     'B':2,'D':2,'G':2,'J':2,'P':2,'Q':2,'R':2,'U':2
 };
 
+// --- DICTIONARY (Lengths 4-15) ---
 const fillerPool = {
     'A': {4:['AREA','ALSO'],5:['APPLE','ALIVE'],6:['ACTION','AROUND'],7:['AGAINST','AIRPORT'],8:['ABSOLUTE','ACADEMIC'],9:['ADVENTURE','AUTHORITY'],10:['APPEARANCE','ADDITIONAL'],11:['AGRICULTURE','ALTERNATIVE'],12:['ARCHITECTURE','APPRECIATION'],13:['ACCOMMODATION','APPROPRIATELY'],14:['ADMINISTRATION','ACCOUNTABILITY'],15:['ACKNOWLEDGEABLE','ACCOMPLISHMENTS']},
     'B': {4:['BLUE','BACK'],5:['BOARD','BASIC'],6:['BEYOND','BEFORE'],7:['BETWEEN','BELIEVE'],8:['BOUNDARY','BUSINESS'],9:['BEAUTIFUL','BROADCAST'],10:['BACKGROUND','BENEFACTOR'],11:['BENEFICIARY','BELLIGERENT'],12:['BREAKTHROUGH','BIBLIOGRAPHY'],13:['BREATHSTAKING','BUILDINGBLOCK'],14:['BIOREMEDIATION','BUSINESSPERSON'],15:['BIOLUMINESCENCE','BLOODTHIRSTINESS']},
@@ -38,46 +48,67 @@ const fillerPool = {
     'Z': {4:['ZERO'],5:['ZONES'],6:['ZEBRAS'],7:['ZOOLOGY'],8:['ZEALOUSLY'],9:['ZEALOTRY'],10:['ZOOLOGICAL'],11:['ZEALOUSNESS'],12:['ZIGZAGGING'],13:['ZINCIFICATION'],14:['ZOOLOGICALLY'],15:['ZOOMORPHICWORDS']}
 };
 
-// --- INSTANT SCRAPER ---
+// --- INSTANT SCRAPER (ORDER PRESERVING) ---
 async function fetchWiki(slug) {
     const log = document.getElementById('debug-log');
     currentArticle = slug;
     log.innerText = "SYNCING...";
-
     try {
         const api = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&titles=${slug}&explaintext=1&format=json&origin=*`;
-        
         const response = await fetch(api);
         const data = await response.json();
-        
         const pages = data.query.pages;
         const pageId = Object.keys(pages)[0];
         const fullText = pages[pageId].extract.toUpperCase();
         
-        const words = fullText.match(/[A-Z]{4,15}/g); 
+        const allWords = fullText.match(/[A-Z]{4,15}/g) || [];
+        wordOrderMap = [...new Set(allWords)];
 
         dictionary = {}; 
-        if (words) {
-            words.forEach(word => {
-                const len = word.length;
-                const hash = word.split('').map(char => shapeMap[char] ?? '').join('');
-                if (!dictionary[len]) dictionary[len] = {};
-                if (!dictionary[len][hash]) dictionary[len][hash] = [];
-                if (!dictionary[len][hash].includes(word)) dictionary[len][hash].push(word);
-            });
+        allWords.forEach(word => {
+            const len = word.length;
+            const hash = word.split('').map(char => shapeMap[char] ?? '').join('');
+            if (!dictionary[len]) dictionary[len] = {};
+            if (!dictionary[len][hash]) dictionary[len][hash] = [];
+            if (!dictionary[len][hash].includes(word)) dictionary[len][hash].push(word);
+        });
+
+        // Sort dictionary by appearance order
+        for (let l in dictionary) {
+            for (let h in dictionary[l]) {
+                dictionary[l][h].sort((a,b) => wordOrderMap.indexOf(a) - wordOrderMap.indexOf(b));
+            }
         }
 
         const cleanTitle = decodeURIComponent(slug).replace(/_/g, ' ').toUpperCase();
         log.innerText = cleanTitle;
         currentArticle = cleanTitle;
-        
         if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
-    } catch (e) {
-        log.innerText = "OFFLINE";
-    }
+    } catch (e) { log.innerText = "OFFLINE"; }
 }
 
-// --- CONTROLS ---
+// --- CONTROLS & LONG PRESS ---
+const btnYes = document.getElementById('btn-yes');
+const btnNo = document.getElementById('btn-no');
+const btnSearch = document.querySelector('.header-right svg:nth-child(3)');
+const btnExecute = document.getElementById('execute-btn');
+
+const setupLongPress = (el, index) => {
+    el.addEventListener('touchstart', (e) => {
+        longPressTimer = setTimeout(() => {
+            if (possibleWords.length >= index + 1) {
+                if (navigator.vibrate) navigator.vibrate(100);
+                generateAcrostic(possibleWords[index]);
+            }
+        }, 700);
+    });
+    el.addEventListener('touchend', () => clearTimeout(longPressTimer));
+};
+
+setupLongPress(btnYes, 0);       // Hold Redo = Word 1
+setupLongPress(btnNo, 1);        // Hold Undo = Word 2
+setupLongPress(btnSearch, 2);    // Hold Search = Word 3
+setupLongPress(btnExecute, 3);   // Hold Tick = Word 4
 
 document.querySelector('.ai-magic').addEventListener('click', async () => {
     try {
@@ -89,9 +120,49 @@ document.querySelector('.ai-magic').addEventListener('click', async () => {
     } catch (e) { console.log("Clipboard Error"); }
 });
 
+btnYes.addEventListener('click', () => {
+    if (possibleWords.length > 1) {
+        const action = getActiveAction();
+        if (action.type === 'positional') {
+            possibleWords = possibleWords.filter(w => w[action.pos] === action.letter);
+        } else {
+            possibleWords = possibleWords.filter(w => w.includes(action.letter));
+        }
+        noCount = 0;
+        handleAnagramStep();
+    }
+});
+
+btnNo.addEventListener('click', () => {
+    if (possibleWords.length > 1) {
+        const action = getActiveAction();
+        if (action.type === 'positional') {
+            possibleWords = possibleWords.filter(w => w[action.pos] !== action.letter);
+        } else {
+            possibleWords = possibleWords.filter(w => !w.includes(action.letter));
+        }
+        noCount++;
+        handleAnagramStep();
+    }
+});
+
+function getActiveAction() {
+    const raw = document.getElementById('debug-log').innerText;
+    if (raw.includes("POSITION")) {
+        const letter = raw.split(': ')[1].split(' |')[0];
+        const pos = parseInt(raw.split('POSITION ')[1].split(':')[0]) - 1;
+        return { letter, pos, type: 'positional' };
+    }
+    return { letter: raw.split(': ')[1].split(' |')[0], type: 'standard' };
+}
+
 document.getElementById('btn-straight').addEventListener('click', () => handleInput(0));
 document.getElementById('btn-curved').addEventListener('click', () => handleInput(1));
 document.getElementById('btn-mixed').addEventListener('click', () => handleInput(2));
+document.getElementById('btn-backspace').addEventListener('click', () => {
+    inputSequence = inputSequence.slice(0, -1);
+    updateHUD();
+});
 
 document.getElementById('back-icon').addEventListener('click', () => {
     inputSequence = "";
@@ -101,31 +172,9 @@ document.getElementById('back-icon').addEventListener('click', () => {
     possibleWords = [];
 });
 
-document.getElementById('btn-backspace').addEventListener('click', () => {
-    inputSequence = inputSequence.slice(0, -1);
-    updateHUD();
-});
+btnExecute.addEventListener('click', revealResult);
 
-document.getElementById('execute-btn').addEventListener('click', revealResult);
-
-// REDO (↪) = YES
-document.getElementById('btn-yes').addEventListener('click', () => {
-    if (possibleWords.length > 1) {
-        const letter = document.getElementById('debug-log').innerText.split(': ')[1].split(' |')[0];
-        possibleWords = possibleWords.filter(w => w.includes(letter));
-        handleAnagramStep();
-    }
-});
-
-// UNDO (↩) = NO
-document.getElementById('btn-no').addEventListener('click', () => {
-    if (possibleWords.length > 1) {
-        const letter = document.getElementById('debug-log').innerText.split(': ')[1].split(' |')[0];
-        possibleWords = possibleWords.filter(w => !w.includes(letter));
-        handleAnagramStep();
-    }
-});
-
+// --- PERFORMANCE LOGIC ---
 function handleInput(val) {
     inputSequence += val;
     if (navigator.vibrate) navigator.vibrate(25);
@@ -133,31 +182,55 @@ function handleInput(val) {
 }
 
 function updateHUD() {
-    const log = document.getElementById('debug-log');
     const labels = ['S', 'C', 'M'];
     const visual = inputSequence.split('').map(i => labels[i]).join(' ');
-    log.innerText = currentArticle + " | " + visual;
+    document.getElementById('debug-log').innerText = currentArticle + " | " + visual;
 }
-
-// --- FISHING ENGINE ---
 
 function revealResult() {
     const len = inputSequence.length;
+    noCount = 0;
     possibleWords = dictionary[len]?.[inputSequence] || [];
-    if (possibleWords.length === 1) {
-        generateAcrostic(possibleWords[0]);
-    } else if (possibleWords.length > 1) {
-        startProgressiveAnagram();
-    } else {
-        document.getElementById('note-body').innerHTML = "Weak connection...<span class='caret'></span>";
-    }
+    if (possibleWords.length === 1) generateAcrostic(possibleWords[0]);
+    else if (possibleWords.length > 1) startProgressiveAnagram();
+    else document.getElementById('note-body').innerHTML = "Weak connection...<span class='caret'></span>";
 }
 
 function startProgressiveAnagram() {
     const log = document.getElementById('debug-log');
-    let alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    let testLetter = "";
+    const listStr = possibleWords.join(' | ');
 
+    // 1. FEELING MODE (3-4 words or failed search)
+    if (possibleWords.length <= 3 || (noCount >= 2 && possibleWords.length === 4)) {
+        log.innerText = `CHOICE: ${listStr}`;
+        if (navigator.vibrate) navigator.vibrate([80, 80]);
+        return;
+    }
+
+    // 2. POSITIONAL ELIMINATION (4+ words after 2 "Nos")
+    if (noCount >= 2) {
+        let bestPos = -1, bestChar = "", maxOverlap = 0;
+        for (let i = 0; i < possibleWords[0].length; i++) {
+            let counts = {};
+            possibleWords.forEach(w => counts[w[i]] = (counts[w[i]] || 0) + 1);
+            for (let char in counts) {
+                if (counts[char] >= 2 && counts[char] < possibleWords.length) {
+                    if (counts[char] > maxOverlap) {
+                        maxOverlap = counts[char];
+                        bestChar = char;
+                        bestPos = i + 1;
+                    }
+                }
+            }
+        }
+        if (bestChar) {
+            log.innerText = `POSITION ${bestPos}: ${bestChar} | [${listStr}]`;
+            return;
+        }
+    }
+
+    // 3. STANDARD FISHING
+    let alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ", testLetter = "";
     for (let char of alphabet) {
         let count = possibleWords.filter(w => w.includes(char)).length;
         if (count > 0 && count < possibleWords.length) {
@@ -166,40 +239,29 @@ function startProgressiveAnagram() {
         }
     }
 
-    if (testLetter) {
-        const listStr = possibleWords.join(', ');
-        log.innerText = `FISHING: ${testLetter} | [${listStr}]`;
-        if (navigator.vibrate) navigator.vibrate([40, 30, 40]);
-    } else {
-        generateAcrostic(possibleWords[0]);
-    }
+    if (testLetter) log.innerText = `FISHING: ${testLetter} | [${listStr}]`;
+    else generateAcrostic(possibleWords[0]);
 }
 
 function handleAnagramStep() {
     if (navigator.vibrate) navigator.vibrate(20);
     if (possibleWords.length === 1) generateAcrostic(possibleWords[0]);
-    else if (possibleWords.length === 0) document.getElementById('debug-log').innerText = "NO MATCHES";
     else startProgressiveAnagram();
 }
 
-// --- FINAL REVEAL ---
-
 function generateAcrostic(wordFound) {
     const body = document.getElementById('note-body');
-    const log = document.getElementById('debug-log');
     const len = wordFound.length;
     let usedWords = new Set();
-
     const html = wordFound.split('').map(letter => {
         const list = fillerPool[letter]?.[len] || [letter + ".".repeat(len - 1)];
         let chosen = list.find(w => !usedWords.has(w) && w !== wordFound) || list[0];
         usedWords.add(chosen);
         return `<div class="reveal-line"><span>${letter}</span>${chosen.slice(1).toLowerCase()}</div>`;
     }).join('');
-    
     body.innerHTML = html + '<span class="caret"></span>';
     document.getElementById('title-input').value = "My Guesses";
-    log.innerText = ""; 
+    document.getElementById('debug-log').innerText = ""; 
     inputSequence = "";
 }
 
