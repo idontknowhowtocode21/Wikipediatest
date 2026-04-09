@@ -1,116 +1,130 @@
-// --- NEW: TIME UPDATER FUNCTION ---
-function updateNoteTime() {
-    const now = new Date();
-    
-    // Format: "Today 8:20 am"
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
-    const ampm = hours >= 12 ? 'pm' : 'am';
-    const formattedHours = hours % 12 || 12;
-    const formattedMinutes = minutes < 10 ? '0' + minutes : minutes;
-    
-    const timeString = `Today ${formattedHours}:${formattedMinutes} ${ampm}`;
-    
-    // Look for the text node in the meta-row
-    const metaRow = document.querySelector('.meta-row');
-    if (metaRow) {
-        // This preserves the SVG dropdown while updating the text
-        metaRow.innerHTML = `${timeString} &nbsp;No category <svg class="dropdown-svg" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>`;
-    }
-}
+// Complete application logic for Wikipedia divination engine
 
-// Call once on load
-updateNoteTime();
-
-// --- REST OF THE LOGIC ---
+// Configuration
 let dictionary = {};
 let currentWordLength = 0;
 let inputSequence = "";
 
+// Capital Shape Mapping
+// 0: Straight | 1: Curved | 2: Mixed
 const shapeMap = {
     'A':0,'E':0,'F':0,'H':0,'I':0,'K':0,'L':0,'M':0,'N':0,'T':0,'V':0,'W':0,'X':0,'Y':0,'Z':0,
     'C':1,'O':1,'S':1,
     'B':2,'D':2,'G':2,'J':2,'P':2,'Q':2,'R':2,'U':2
 };
 
+// Wordsmith-style filler words for acrostic output
 const fillers = {
-    'A': 'Apple', 'B': 'Blue', 'C': 'Cold', 'D': 'Dark', 'E': 'East', 'F': 'Fire', 'G': 'Gold',
-    'H': 'High', 'I': 'Iron', 'J': 'Just', 'K': 'Kind', 'L': 'Long', 'M': 'Moon', 'N': 'Next',
-    'O': 'Open', 'P': 'Past', 'Q': 'Quiet', 'R': 'Red', 'S': 'Star', 'T': 'Time', 'U': 'Under',
-    'V': 'View', 'W': 'West', 'X': 'Xray', 'Y': 'Year', 'Z': 'Zero'
+    'A': 'Action', 'B': 'Blue', 'C': 'Case', 'D': 'Data', 'E': 'East', 'F': 'Field', 'G': 'Gold',
+    'H': 'Hold', 'I': 'Image', 'J': 'Join', 'K': 'Keep', 'L': 'Lock', 'M': 'Mode', 'N': 'Next',
+    'O': 'Open', 'P': 'Plan', 'Q': 'Quite', 'R': 'Right', 'S': 'Star', 'T': 'Task', 'U': 'User',
+    'V': 'Value', 'W': 'Work', 'X': 'Xray', 'Y': 'Year', 'Z': 'Zero'
 };
 
+// System Fetcher
 async function fetchWiki(url) {
-    const log = document.getElementById('debug-log');
-    log.innerText = "Indexing...";
+    console.log("Fetching: " + url);
     try {
-        const title = url.split('wiki/')[1].split('#')[0];
+        const titleMatch = url.match(/\/wiki\/([^#?]+)/);
+        if (!titleMatch) throw new Error("Invalid URL format");
+        
+        const title = titleMatch[1];
         const api = `https://en.wikipedia.org/w/api.php?action=parse&page=${title}&prop=text&format=json&origin=*`;
+        
         const response = await fetch(api);
         const data = await response.json();
+        
+        if (data.error) throw new Error("Page not found on Wikipedia");
+
         const rawHtml = data.parse.text["*"];
         const tempDiv = document.createElement("div");
         tempDiv.innerHTML = rawHtml;
-        const words = tempDiv.innerText.toUpperCase().match(/[A-Z]{3,}/g);
-        dictionary = {};
+        
+        const toRemove = tempDiv.querySelectorAll('sup, .mw-editsection, table, script, style');
+        toRemove.forEach(el => el.remove());
+
+        const cleanText = tempDiv.innerText.toUpperCase();
+        const words = cleanText.match(/[A-Z]{4,}/g); 
+
+        dictionary = {}; // Reset previous session
         words.forEach(word => {
+            const len = word.length;
             const hash = word.split('').map(char => shapeMap[char] ?? '').join('');
-            if (!dictionary[word.length]) dictionary[word.length] = {};
-            if (!dictionary[word.length][hash]) dictionary[word.length][hash] = word;
+            if (!dictionary[len]) dictionary[len] = {};
+            // Keep first instance found
+            if (!dictionary[len][hash]) dictionary[len][hash] = word;
         });
-        document.getElementById('status-dot').style.background = "#4CAF50"; 
-        log.innerText = "Ready";
-        if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
-    } catch (e) { log.innerText = "Error!"; }
+
+        console.log("Index Complete");
+        if (navigator.vibrate) navigator.vibrate([100, 30, 100]); // Success buzz
+    } catch (e) {
+        console.error("Index failed: ", e);
+    }
 }
 
+// Event Listeners
+
+// Secret: Long press back icon in the top-left to set URL
 document.getElementById('back-icon').addEventListener('contextmenu', (e) => {
     e.preventDefault();
-    const url = prompt("Enter Wikipedia URL:");
+    const url = prompt("Paste Wikipedia Link:");
     if (url) fetchWiki(url);
 });
 
+// Setting Length: Number in title enables mixed-mode taps
 document.getElementById('title-input').addEventListener('input', (e) => {
     const val = e.target.value;
-    updateNoteTime(); // Update time when you type
-    
-    if (!isNaN(val) && val !== "") {
+    const tapOverlay = document.getElementById('tap-overlay');
+    const noteArea = document.getElementById('note-body');
+
+    if (!isNaN(val) && val !== "" && val !== "Title") {
         currentWordLength = parseInt(val);
-        document.getElementById('tap-overlay').style.display = "flex";
-        document.getElementById('note-body').value = "";
+        tapOverlay.style.display = "flex";
+        noteArea.value = "Indexing length: " + val;
         inputSequence = "";
     } else {
-        document.getElementById('tap-overlay').style.display = "none";
+        tapOverlay.style.display = "none";
     }
 });
 
-function handleTap(type) {
-    const log = document.getElementById('debug-log');
-    const labels = ['S', 'C', 'M'];
-    inputSequence += type;
-    log.innerText = (inputSequence.length === 1) ? labels[type] : log.innerText + " " + labels[type];
-    if (navigator.vibrate) navigator.vibrate(25);
-    if (inputSequence.length === currentWordLength) setTimeout(revealResult, 300);
+// The Mixed Divination Mode
+function provideVibrationHUD(index) {
+    // Index 0: Straight | 1: Curved | 2: Mixed
+    const vibrations = [
+        [20], // Short Straight (S)
+        [20, 100, 20], // Pulse Curved (C)
+        [80] // Rumble Mixed (M)
+    ];
+    if (navigator.vibrate) navigator.vibrate(vibrations[index] || 10);
 }
 
-// Add event listeners to the zones if not already in HTML
 document.querySelectorAll('.zone').forEach((zone, index) => {
-    zone.addEventListener('click', () => handleTap(index));
+    zone.addEventListener('click', () => {
+        if (currentWordLength === 0) return;
+        provideVibrationHUD(index);
+        inputSequence += index; 
+
+        if (inputSequence.length === currentWordLength) {
+            setTimeout(revealWordAcrostic, 200);
+        }
+    });
 });
 
-function revealResult() {
-    const wordFound = dictionary[currentWordLength]?.[inputSequence];
-    const body = document.getElementById('note-body');
+// The Reveal
+function revealWordAcrostic() {
+    const foundWord = dictionary[currentWordLength]?.[inputSequence];
+    const display = document.getElementById('note-body');
     const title = document.getElementById('title-input');
     
     if (wordFound) {
-        body.value = wordFound.split('').map(l => fillers[l] || l).join('\n') + "\n\n(None of these?)";
+        const acrostic = wordFound.split('').map(letter => fillers[letter] || letter).join('\n');
+        display.value = `I'm seeing possibilities like...\n\n${acrostic}\n\nNot what you thought of? Check closer...`;
     } else {
-        body.value = "Connection lost. Please focus on the letters again.";
+        display.value = "Hmm. I'm having difficulty connecting. Visualise the shapes once more.";
     }
     
     document.getElementById('tap-overlay').style.display = "none";
-    title.value = "My Guesses";
-    inputSequence = "";
-    updateNoteTime();
+    currentWordLength = 0; // Reset
+    title.value = "My Guesses"; // Mask number
+    if (navigator.vibrate) navigator.vibrate(50); // Confirm buzz
 }
