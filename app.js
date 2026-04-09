@@ -1,3 +1,28 @@
+// --- NEW: TIME UPDATER FUNCTION ---
+function updateNoteTime() {
+    const now = new Date();
+    
+    // Format: "Today 8:20 am"
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    const ampm = hours >= 12 ? 'pm' : 'am';
+    const formattedHours = hours % 12 || 12;
+    const formattedMinutes = minutes < 10 ? '0' + minutes : minutes;
+    
+    const timeString = `Today ${formattedHours}:${formattedMinutes} ${ampm}`;
+    
+    // Look for the text node in the meta-row
+    const metaRow = document.querySelector('.meta-row');
+    if (metaRow) {
+        // This preserves the SVG dropdown while updating the text
+        metaRow.innerHTML = `${timeString} &nbsp;No category <svg class="dropdown-svg" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>`;
+    }
+}
+
+// Call once on load
+updateNoteTime();
+
+// --- REST OF THE LOGIC ---
 let dictionary = {};
 let currentWordLength = 0;
 let inputSequence = "";
@@ -15,7 +40,6 @@ const fillers = {
     'V': 'View', 'W': 'West', 'X': 'Xray', 'Y': 'Year', 'Z': 'Zero'
 };
 
-// Wikipedia Scraper
 async function fetchWiki(url) {
     const log = document.getElementById('debug-log');
     log.innerText = "Indexing...";
@@ -36,19 +60,20 @@ async function fetchWiki(url) {
         });
         document.getElementById('status-dot').style.background = "#4CAF50"; 
         log.innerText = "Ready";
+        if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
     } catch (e) { log.innerText = "Error!"; }
 }
 
-// Secret Trigger
 document.getElementById('back-icon').addEventListener('contextmenu', (e) => {
     e.preventDefault();
     const url = prompt("Enter Wikipedia URL:");
     if (url) fetchWiki(url);
 });
 
-// Length Trigger
 document.getElementById('title-input').addEventListener('input', (e) => {
     const val = e.target.value;
+    updateNoteTime(); // Update time when you type
+    
     if (!isNaN(val) && val !== "") {
         currentWordLength = parseInt(val);
         document.getElementById('tap-overlay').style.display = "flex";
@@ -59,7 +84,6 @@ document.getElementById('title-input').addEventListener('input', (e) => {
     }
 });
 
-// Invisible Taps
 function handleTap(type) {
     const log = document.getElementById('debug-log');
     const labels = ['S', 'C', 'M'];
@@ -69,16 +93,24 @@ function handleTap(type) {
     if (inputSequence.length === currentWordLength) setTimeout(revealResult, 300);
 }
 
+// Add event listeners to the zones if not already in HTML
+document.querySelectorAll('.zone').forEach((zone, index) => {
+    zone.addEventListener('click', () => handleTap(index));
+});
+
 function revealResult() {
     const wordFound = dictionary[currentWordLength]?.[inputSequence];
     const body = document.getElementById('note-body');
     const title = document.getElementById('title-input');
+    
     if (wordFound) {
         body.value = wordFound.split('').map(l => fillers[l] || l).join('\n') + "\n\n(None of these?)";
     } else {
         body.value = "Connection lost. Please focus on the letters again.";
     }
+    
     document.getElementById('tap-overlay').style.display = "none";
     title.value = "My Guesses";
     inputSequence = "";
+    updateNoteTime();
 }
