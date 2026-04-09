@@ -1,153 +1,61 @@
-/* Pixel-Perfect Replica of Target Screenshot (Dark Mode) */
 :root {
     --bg-black: #000000;
-    --text-primary: #f2f2f3;
-    --text-meta: #7c8188;
-    --text-meta-faint: #4c525a;
-    --icon-grey: #a0a6ae;
-    --icon-dim: #70757c;
-    --magic-blue: #3d91f4;
+    --text-white: #e3e3e3;
+    --text-grey: #8d8d8d;
+    --caret-brown: #916945;
+    --ai-blue: #7ca4ff;
+    --icon-stroke: #e3e3e3;
 }
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
 
 body {
-    font-family: 'Roboto', -apple-system, sans-serif;
-    font-weight: 300;
-    background: var(--bg-black);
-    color: var(--text-primary);
-    margin: 0;
-    padding: 0;
+    background-color: var(--bg-black);
+    color: var(--text-white);
+    font-family: "Roboto", "Inter", sans-serif;
+    height: 100vh;
     display: flex;
     flex-direction: column;
-    height: 100vh;
     overflow: hidden;
-    letter-spacing: 0.3px;
 }
 
-/* Placeholder for Top Status Bar (8:20 AM, 100%) */
-#os-status-bar {
-    height: 24px;
-    background: transparent;
+/* --- Navigation & HUD --- */
+#status-dot { position: fixed; top: 0; right: 0; width: 5px; height: 5px; background: transparent; z-index: 1000; }
+#debug-log { position: fixed; bottom: 80px; left: 24px; font-size: 10px; color: #1a1a1a; z-index: 1000; font-family: monospace; pointer-events: none; }
+
+.header { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; margin-top: 5px; }
+.header-right { display: flex; gap: 22px; align-items: center; }
+.nav-icon { width: 24px; height: 24px; fill: none; stroke: var(--icon-stroke); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; cursor: pointer; }
+
+/* --- Content Area --- */
+.content { flex: 1; padding: 15px 24px; display: flex; flex-direction: column; }
+
+.note-title-input {
+    background: transparent; border: none; outline: none;
+    font-size: 36px; font-weight: 400; color: var(--text-white);
+    letter-spacing: -0.5px; width: 100%; margin-bottom: 4px;
 }
 
-/* Secret Debug HUD (bottom left) - Now invisible to public */
-#debug-log {
-    position: fixed;
-    bottom: 5px;
-    left: 10px;
-    font-size: 8px;
-    color: var(--bg-black); /* Set to BG color to hide from spectator */
-    z-index: 200;
-    font-family: monospace;
-}
-
-/* Top Action Bar (Back, Undo, Redo, Search, Done) */
-#top-toolbar {
-    height: 50px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 16px;
-}
-
-.icon {
-    font-size: 26px;
-    color: var(--icon-grey);
-    cursor: pointer;
-}
-
-#back-icon {
-    font-size: 30px;
-    margin-right: 20px;
-}
-
-#top-right-actions {
-    display: flex;
-    gap: 22px;
-}
-
-#top-right-actions .icon {
-    font-size: 22px;
-}
-
-/* Note Title Field (Thin Font, Light Text) */
-#title-wrapper {
-    padding: 10px 20px 0 20px;
-}
-
-#title-input {
-    background: transparent;
-    border: none;
-    outline: none;
-    font-family: inherit;
-    font-size: 26px;
-    font-weight: 300;
-    color: var(--text-primary);
-    width: 100%;
-}
-
-/* Meta Line (Date / No Category ▼) */
-#meta-info {
-    font-size: 13px;
-    color: var(--text-meta);
-    padding: 8px 20px;
-}
-
-#date-time {
-    margin-right: 8px;
-}
-
-/* Main Text Area */
-#body-wrapper {
-    flex-grow: 1;
-    display: flex;
-}
+.meta-row { font-size: 14.5px; color: var(--text-grey); display: flex; align-items: center; gap: 6px; font-weight: 300; }
+.dropdown-svg { width: 14px; height: 14px; fill: var(--text-grey); }
 
 #note-body {
-    flex-grow: 1;
-    background: transparent;
-    border: none;
-    outline: none;
-    padding: 5px 20px;
-    font-family: inherit;
-    font-size: 16px;
-    line-height: 1.6;
-    color: var(--text-primary);
-    resize: none;
+    flex: 1; background: transparent; border: none; outline: none;
+    color: var(--text-white); font-size: 18px; line-height: 1.6;
+    margin-top: 20px; resize: none; width: 100%;
+    font-family: "Roboto", sans-serif;
 }
 
-/* Invisible Tap Overlay */
+/* --- Tap Overlay --- */
 #tap-overlay {
-    position: fixed;
-    top: 150px;
-    left: 0;
-    width: 100%;
-    bottom: 60px; /* Leave room for bottom bar */
-    z-index: 50;
-    display: none;
+    position: fixed; top: 200px; left: 0; width: 100%; bottom: 100px;
+    display: none; z-index: 100;
 }
+.zone { flex: 1; height: 100%; }
 
-.zone {
-    flex: 1;
-    height: 100%;
-}
-
-/* Bottom Editing Toolbar */
-#bottom-toolbar {
-    height: 56px;
-    background: #111111; /* Subtle bar background */
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 30px;
-    border-top: 1px solid #1a1a1a;
-}
-
-.btm-icon {
-    font-size: 19px;
-    color: var(--icon-dim);
-}
-
-.btm-icon.spec-blue {
-    color: var(--magic-blue);
-    font-size: 21px;
-}
+/* --- Footer & Toolbar --- */
+.footer { padding-bottom: env(safe-area-inset-bottom); }
+.toolbar { display: flex; justify-content: space-between; align-items: center; padding: 10px 24px 20px 24px; }
+.tool-svg { width: 26px; height: 26px; fill: var(--icon-stroke); }
+.ai-magic { fill: var(--ai-blue); filter: drop-shadow(0 0 2px rgba(124, 164, 255, 0.3)); }
+.home-pill { width: 134px; height: 4.5px; background-color: #ffffff; border-radius: 100px; margin: 0 auto 8px auto; opacity: 0.9; }
