@@ -1,6 +1,6 @@
 let dictionary = {};
 let inputSequence = "";
-let currentArticle = "Ready";
+let currentArticle = "READY";
 
 const shapeMap = {
     'A':0,'E':0,'F':0,'H':0,'I':0,'K':0,'L':0,'M':0,'N':0,'T':0,'V':0,'W':0,'X':0,'Y':0,'Z':0,
@@ -37,23 +37,20 @@ const fillerWords = {
     'Z': {4:'ZERO', 5:'ZONES', 6:'ZEBRAS', 7:'ZOOLOGY', 8:'ZEALOUSLY', 9:'ZEALOTRY', 10:'ZOOLOGICAL', 11:'ZEALOUSNESS', 12:'ZIGZAGGING'}
 };
 
-async function checkClipboard() {
+// 1. CLIPBOARD SNATCH (Triggered by Magic Wand Icon)
+document.querySelector('.ai-magic').addEventListener('click', async () => {
     try {
         const text = await navigator.clipboard.readText();
         if (text.includes("wikipedia.org/wiki/")) {
             const slug = text.split("/wiki/")[1].split(/[#?]/)[0];
-            if (slug !== currentArticle) fetchWiki(slug);
+            fetchWiki(slug);
         }
-    } catch (e) {}
-}
-
-window.addEventListener('focus', checkClipboard);
-document.body.addEventListener('click', checkClipboard, { once: false });
+    } catch (e) { console.log("Clipboard Error"); }
+});
 
 async function fetchWiki(slug) {
     const log = document.getElementById('debug-log');
-    currentArticle = slug;
-    log.innerText = "INDEXING...";
+    log.innerText = "SYNCING...";
     try {
         const response = await fetch(`https://en.wikipedia.org/w/api.php?action=parse&page=${slug}&prop=text&format=json&origin=*`);
         const data = await response.json();
@@ -63,22 +60,37 @@ async function fetchWiki(slug) {
         const words = tempDiv.innerText.toUpperCase().match(/[A-Z]{4,12}/g); 
         dictionary = {};
         words.forEach(word => {
+            const len = word.length;
             const hash = word.split('').map(char => shapeMap[char] ?? '').join('');
-            if (!dictionary[word.length]) dictionary[word.length] = {};
-            if (!dictionary[word.length][hash]) dictionary[word.length][hash] = word;
+            if (!dictionary[len]) dictionary[len] = {};
+            if (!dictionary[len][hash]) dictionary[len][hash] = word;
         });
-        log.innerText = decodeURIComponent(slug).replace(/_/g, ' ').toUpperCase();
+        currentArticle = decodeURIComponent(slug).replace(/_/g, ' ').toUpperCase();
+        log.innerText = currentArticle;
         if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
-    } catch (e) { log.innerText = "ERROR"; }
+    } catch (e) { log.innerText = "OFFLINE"; }
 }
 
+// 2. INPUT MAPPING
 document.getElementById('btn-straight').addEventListener('click', () => handleInput(0));
 document.getElementById('btn-curved').addEventListener('click', () => handleInput(1));
 document.getElementById('btn-mixed').addEventListener('click', () => handleInput(2));
+
+// BACK BUTTON (Top Left) - FULL RESET
+document.getElementById('back-icon').addEventListener('click', () => {
+    inputSequence = "";
+    document.getElementById('note-body').innerHTML = "";
+    document.getElementById('title-input').value = "";
+    document.getElementById('debug-log').innerText = currentArticle; // Keeps current wiki
+    if (navigator.vibrate) navigator.vibrate(100);
+});
+
+// BACKSPACE (Mic Icon)
 document.getElementById('btn-backspace').addEventListener('click', () => {
     inputSequence = inputSequence.slice(0, -1);
     updateHUD();
 });
+
 document.getElementById('execute-btn').addEventListener('click', revealResult);
 
 function handleInput(val) {
@@ -88,21 +100,39 @@ function handleInput(val) {
 }
 
 function updateHUD() {
+    const log = document.getElementById('debug-log');
     const labels = ['S', 'C', 'M'];
     const visual = inputSequence.split('').map(i => labels[i]).join(' ');
-    document.getElementById('debug-log').innerText = (currentArticle + " | " + visual).toUpperCase();
+    log.innerText = currentArticle + " | " + visual;
 }
 
+// 3. REVEAL ENGINE
 function revealResult() {
     const len = inputSequence.length;
     const wordFound = dictionary[len]?.[inputSequence];
     const body = document.getElementById('note-body');
+    const log = document.getElementById('debug-log');
+
     if (wordFound) {
-        body.innerHTML = wordFound.split('').map(letter => {
-            const displayWord = fillerWords[letter][len] || (letter + "...");
-            return `<div><span>${letter}</span>${displayWord.slice(1).toLowerCase()}</div>`;
+        const html = wordFound.split('').map(letter => {
+            // Check if our filler is the same as the target word
+            let displayWord = fillerWords[letter][len] || (letter + "...");
+            
+            // SECURITY: If the filler word matches the found word, pick a backup
+            if (displayWord === wordFound) {
+                displayWord = letter + " ".repeat(len-1); // Simple fallback
+            }
+
+            return `<div class="reveal-line"><span>${letter}</span>${displayWord.slice(1).toLowerCase()}</div>`;
         }).join('');
+        
+        body.innerHTML = html;
         document.getElementById('title-input').value = "My Guesses";
+        
+        // PEAK DISAPPEARS
+        log.innerText = ""; 
+    } else {
+        body.innerText = "Connection weak. Focus on the shapes...";
     }
     inputSequence = "";
 }
