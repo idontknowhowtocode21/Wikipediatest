@@ -8,7 +8,7 @@ const shapeMap = {
     'B':2,'D':2,'G':2,'J':2,'P':2,'Q':2,'R':2,'U':2
 };
 
-// Expanded dictionary categorised by starting letter and exact length (4-15)
+// Comprehensive filler pool (Lengths 4-15)
 const fillerPool = {
     'A': {4:['AREA','ALSO'],5:['APPLE','ALIVE'],6:['ACTION','AROUND'],7:['AGAINST','AIRPORT'],8:['ABSOLUTE','ACADEMIC'],9:['ADVENTURE','AUTHORITY'],10:['APPEARANCE','ADDITIONAL'],11:['AGRICULTURE','ALTERNATIVE'],12:['ARCHITECTURE','APPRECIATION'],13:['ACCOMMODATION','APPROPRIATELY'],14:['ADMINISTRATION','ACCOUNTABILITY'],15:['ACKNOWLEDGEABLE','ACCOMPLISHMENTS']},
     'B': {4:['BLUE','BACK'],5:['BOARD','BASIC'],6:['BEYOND','BEFORE'],7:['BETWEEN','BELIEVE'],8:['BOUNDARY','BUSINESS'],9:['BEAUTIFUL','BROADCAST'],10:['BACKGROUND','BENEFACTOR'],11:['BENEFICIARY','BELLIGERENT'],12:['BREAKTHROUGH','BIBLIOGRAPHY'],13:['BREATHSTAKING','BUILDINGBLOCK'],14:['BIOREMEDIATION','BUSINESSPERSON'],15:['BIOLUMINESCENCE','BLOODTHIRSTINESS']},
@@ -38,7 +38,7 @@ const fillerPool = {
     'Z': {4:['ZERO'],5:['ZONES'],6:['ZEBRAS'],7:['ZOOLOGY'],8:['ZEALOUSLY'],9:['ZEALOTRY'],10:['ZOOLOGICAL'],11:['ZEALOUSNESS'],12:['ZIGZAGGING'],13:['ZINCIFICATION'],14:['ZOOLOGICALLY'],15:['ZOOMORPHICWORDS']}
 };
 
-// Clipboard Snatch (🪄 Magic Wand)
+// Clipboard Snatch (Magic Wand)
 document.querySelector('.ai-magic').addEventListener('click', async () => {
     try {
         const text = await navigator.clipboard.readText();
@@ -54,12 +54,16 @@ async function fetchWiki(slug) {
     currentArticle = slug;
     log.innerText = "SYNCING...";
     try {
+        // Fetch ALL sections by removing the "lead" restriction
         const response = await fetch(`https://en.wikipedia.org/w/api.php?action=parse&page=${slug}&prop=text&format=json&origin=*`);
         const data = await response.json();
         const tempDiv = document.createElement("div");
         tempDiv.innerHTML = data.parse.text["*"];
-        tempDiv.querySelectorAll('sup, .mw-editsection, table, script, style').forEach(el => el.remove());
-        const words = tempDiv.innerText.toUpperCase().match(/[A-Z]{3,15}/g); 
+        
+        // Comprehensive clean up
+        tempDiv.querySelectorAll('sup, .mw-editsection, table, script, style, .reflist, .navbox').forEach(el => el.remove());
+        
+        const words = tempDiv.innerText.toUpperCase().match(/[A-Z]{4,15}/g); 
         dictionary = {};
         words.forEach(word => {
             const len = word.length;
@@ -67,13 +71,14 @@ async function fetchWiki(slug) {
             if (!dictionary[len]) dictionary[len] = {};
             if (!dictionary[len][hash]) dictionary[len][hash] = word;
         });
+        
         currentArticle = decodeURIComponent(slug).replace(/_/g, ' ').toUpperCase();
         log.innerText = currentArticle;
         if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
     } catch (e) { log.innerText = "OFFLINE"; }
 }
 
-// Input Mapping
+// Button Mapping
 document.getElementById('btn-straight').addEventListener('click', () => handleInput(0));
 document.getElementById('btn-curved').addEventListener('click', () => handleInput(1));
 document.getElementById('btn-mixed').addEventListener('click', () => handleInput(2));
@@ -108,30 +113,41 @@ function updateHUD() {
     log.innerText = currentArticle + " | " + visual;
 }
 
-// REVEAL ENGINE
+// THE REVEAL ENGINE
 function revealResult() {
     const len = inputSequence.length;
-    const wordFound = dictionary[len]?.[inputSequence];
     const body = document.getElementById('note-body');
     const log = document.getElementById('debug-log');
+    
+    // 1. Try to find the exact word
+    let wordFound = dictionary[len]?.[inputSequence];
+
+    // 2. FAILSAFE: Pick first word of that length if no exact match
+    if (!wordFound && dictionary[len]) {
+        const fallbackKeys = Object.keys(dictionary[len]);
+        if (fallbackKeys.length > 0) {
+            wordFound = dictionary[len][fallbackKeys[0]];
+        }
+    }
+
     let usedWords = new Set();
 
     if (wordFound) {
         const html = wordFound.split('').map(letter => {
             const list = fillerPool[letter]?.[len] || [letter + ".".repeat(len-1)];
             
-            // SECURITY: Ensure we don't repeat words or pick the target word
+            // SECURITY: No repeats, no matches with the target word
             let chosen = list.find(w => !usedWords.has(w) && w !== wordFound) || list[0];
             
             usedWords.add(chosen);
-            return `<div><span>${letter}</span>${chosen.slice(1).toLowerCase()}</div>`;
+            return `<div class="reveal-line"><span>${letter}</span>${chosen.slice(1).toLowerCase()}</div>`;
         }).join('');
         
         body.innerHTML = html + '<span class="caret"></span>';
         document.getElementById('title-input').value = "My Guesses";
         log.innerText = ""; 
     } else {
-        body.innerText = "Connection weak. Focus on the shapes...";
+        body.innerHTML = "I'm having trouble focusing... focus on the shapes again.<span class='caret'></span>";
     }
     inputSequence = "";
 }
