@@ -4,6 +4,11 @@
     --text-grey: #8d8d8d;
     --ai-blue: #7ca4ff;
     --icon-stroke: #e3e3e3;
+    
+    /* Strict Relative Scaling */
+    --sp-12: 12px;
+    --sp-16: calc(var(--sp-12) * 1.3333); /* 16px */
+    --sp-24: calc(var(--sp-12) * 2);      /* 24px */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
@@ -11,7 +16,7 @@
 body {
     background-color: var(--bg-black);
     color: var(--text-white);
-    /* "Product Sans" or "Inter" provides that Geometric Sans look */
+    /* Inter provides the geometric sans-serif aesthetic */
     font-family: "Inter", "Roboto", "Segoe UI", sans-serif;
     height: 100dvh; 
     display: flex;
@@ -19,24 +24,13 @@ body {
     overflow: hidden;
 }
 
-/* --- Header Section --- */
-.header { 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center; 
-    padding: 12px 18px; 
-    flex-shrink: 0; 
-}
+/* --- Header & HUD --- */
+#status-dot { position: fixed; top: 0; right: 0; width: 5px; height: 5px; background: transparent; z-index: 1000; }
+#debug-log { position: fixed; bottom: 80px; left: 24px; font-size: 10px; color: #1a1a1a; z-index: 1000; font-family: monospace; pointer-events: none; }
 
-.nav-icon { 
-    width: 22px; 
-    height: 22px; 
-    fill: none; 
-    stroke: var(--icon-stroke); 
-    stroke-width: 1.8; 
-    stroke-linecap: round; 
-    stroke-linejoin: round; 
-}
+.header { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; flex-shrink: 0; }
+.header-right { display: flex; gap: 22px; align-items: center; }
+.nav-icon { width: 22px; height: 22px; fill: none; stroke: var(--icon-stroke); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; cursor: pointer; }
 
 /* --- Content Area --- */
 .content { 
@@ -46,13 +40,13 @@ body {
     flex-direction: column;
 }
 
-/* Header/Title: 24sp Bold Geometric */
+/* Header/Title: 24sp Regular (Geometric) */
 .note-title-input {
     background: transparent; 
     border: none; 
     outline: none;
-    font-size: 24px; /* 24sp */
-    font-weight: 700; /* Bold */
+    font-size: var(--sp-24); /* 24sp */
+    font-weight: 400; /* Regular weight, common for large titles */
     color: var(--text-white);
     letter-spacing: -0.2px; 
     width: 100%; 
@@ -62,12 +56,12 @@ body {
 
 /* Timestamp: 12sp Regular */
 .meta-row { 
-    font-size: 12px; /* 12sp */
+    font-size: var(--sp-12); /* 12sp */
     color: var(--text-grey); 
     display: flex; 
     align-items: center; 
     gap: 5px; 
-    font-weight: 400; /* Regular */
+    font-weight: 400; 
     margin-bottom: 18px;
 }
 
@@ -80,15 +74,22 @@ body {
     border: none; 
     outline: none;
     color: var(--text-white); 
-    font-size: 16px; /* 16sp */
+    font-size: var(--sp-16); /* 16sp */
     line-height: 1.5; 
     resize: none; 
     width: 100%;
-    font-weight: 400; /* Regular */
+    font-weight: 400; 
     font-family: "Roboto", sans-serif; /* Standard Sans-Serif body */
 }
 
-/* --- Footer Area --- */
+/* --- Tap Overlay --- */
+#tap-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    display: none; z-index: 100;
+}
+.zone { flex: 1; height: 100%; }
+
+/* --- Footer & Toolbar --- */
 .footer { 
     flex-shrink: 0;
     padding-bottom: env(safe-area-inset-bottom); 
@@ -113,10 +114,3 @@ body {
     margin: 0 auto 10px auto; 
     opacity: 0.8; 
 }
-
-/* Tap Overlay Logic */
-#tap-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    display: none; z-index: 100;
-}
-.zone { flex: 1; height: 100%; }
