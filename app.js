@@ -9,7 +9,6 @@ const shapeMap = {
     'B':2,'D':2,'G':2,'J':2,'P':2,'Q':2,'R':2,'U':2
 };
 
-// Expanded Dictionary (Lengths 4-15) - Add your specific words here
 const fillerPool = {
     'A': {4:['AREA','ALSO'],5:['APPLE','ALIVE'],6:['ACTION','AROUND'],7:['AGAINST','AIRPORT'],8:['ABSOLUTE','ACADEMIC'],9:['ADVENTURE','AUTHORITY'],10:['APPEARANCE','ADDITIONAL'],11:['AGRICULTURE','ALTERNATIVE'],12:['ARCHITECTURE','APPRECIATION'],13:['ACCOMMODATION','APPROPRIATELY'],14:['ADMINISTRATION','ACCOUNTABILITY'],15:['ACKNOWLEDGEABLE','ACCOMPLISHMENTS']},
     'B': {4:['BLUE','BACK'],5:['BOARD','BASIC'],6:['BEYOND','BEFORE'],7:['BETWEEN','BELIEVE'],8:['BOUNDARY','BUSINESS'],9:['BEAUTIFUL','BROADCAST'],10:['BACKGROUND','BENEFACTOR'],11:['BENEFICIARY','BELLIGERENT'],12:['BREAKTHROUGH','BIBLIOGRAPHY'],13:['BREATHSTAKING','BUILDINGBLOCK'],14:['BIOREMEDIATION','BUSINESSPERSON'],15:['BIOLUMINESCENCE','BLOODTHIRSTINESS']},
@@ -39,7 +38,47 @@ const fillerPool = {
     'Z': {4:['ZERO'],5:['ZONES'],6:['ZEBRAS'],7:['ZOOLOGY'],8:['ZEALOUSLY'],9:['ZEALOTRY'],10:['ZOOLOGICAL'],11:['ZEALOUSNESS'],12:['ZIGZAGGING'],13:['ZINCIFICATION'],14:['ZOOLOGICALLY'],15:['ZOOMORPHICWORDS']}
 };
 
-// Clipboard Snatch (🪄 Magic Wand)
+// --- INSTANT SCRAPER ---
+async function fetchWiki(slug) {
+    const log = document.getElementById('debug-log');
+    currentArticle = slug;
+    log.innerText = "SYNCING...";
+
+    try {
+        const api = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&titles=${slug}&explaintext=1&format=json&origin=*`;
+        
+        const response = await fetch(api);
+        const data = await response.json();
+        
+        const pages = data.query.pages;
+        const pageId = Object.keys(pages)[0];
+        const fullText = pages[pageId].extract.toUpperCase();
+        
+        const words = fullText.match(/[A-Z]{4,15}/g); 
+
+        dictionary = {}; 
+        if (words) {
+            words.forEach(word => {
+                const len = word.length;
+                const hash = word.split('').map(char => shapeMap[char] ?? '').join('');
+                if (!dictionary[len]) dictionary[len] = {};
+                if (!dictionary[len][hash]) dictionary[len][hash] = [];
+                if (!dictionary[len][hash].includes(word)) dictionary[len][hash].push(word);
+            });
+        }
+
+        const cleanTitle = decodeURIComponent(slug).replace(/_/g, ' ').toUpperCase();
+        log.innerText = cleanTitle;
+        currentArticle = cleanTitle;
+        
+        if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
+    } catch (e) {
+        log.innerText = "OFFLINE";
+    }
+}
+
+// --- CONTROLS ---
+
 document.querySelector('.ai-magic').addEventListener('click', async () => {
     try {
         const text = await navigator.clipboard.readText();
@@ -50,52 +89,18 @@ document.querySelector('.ai-magic').addEventListener('click', async () => {
     } catch (e) { console.log("Clipboard Error"); }
 });
 
-async function fetchWiki(slug) {
-    const log = document.getElementById('debug-log');
-    currentArticle = slug;
-    log.innerText = "SCRAPING ALL SECTIONS...";
-    try {
-        // Fetch full page text
-        const response = await fetch(`https://en.wikipedia.org/w/api.php?action=parse&page=${slug}&prop=text&format=json&origin=*`);
-        const data = await response.json();
-        const tempDiv = document.createElement("div");
-        tempDiv.innerHTML = data.parse.text["*"];
-        
-        // Comprehensive clean up
-        tempDiv.querySelectorAll('sup.reference, .mw-editsection, table, .navbox, .infobox, .toc, script, style, .reflist').forEach(el => el.remove());
-        
-        const words = tempDiv.innerText.toUpperCase().match(/[A-Z]{4,15}/g); 
-        dictionary = {};
-        if (words) {
-            words.forEach(word => {
-                const len = word.length;
-                const hash = word.split('').map(char => shapeMap[char] ?? '').join('');
-                if (!dictionary[len]) dictionary[len] = {};
-                if (!dictionary[len][hash]) dictionary[len][hash] = [];
-                if (!dictionary[len][hash].includes(word)) dictionary[len][hash].push(word);
-            });
-        }
-        currentArticle = decodeURIComponent(slug).replace(/_/g, ' ').toUpperCase();
-        log.innerText = currentArticle;
-        if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
-    } catch (e) { log.innerText = "OFFLINE"; }
-}
-
-// Button Mapping
 document.getElementById('btn-straight').addEventListener('click', () => handleInput(0));
 document.getElementById('btn-curved').addEventListener('click', () => handleInput(1));
 document.getElementById('btn-mixed').addEventListener('click', () => handleInput(2));
 
-// Reset Trigger (‹ Back Arrow)
 document.getElementById('back-icon').addEventListener('click', () => {
     inputSequence = "";
     document.getElementById('note-body').innerHTML = "";
     document.getElementById('title-input').value = "";
     document.getElementById('debug-log').innerText = currentArticle;
-    if (navigator.vibrate) navigator.vibrate(100);
+    possibleWords = [];
 });
 
-// Backspace (🎙️ Mic)
 document.getElementById('btn-backspace').addEventListener('click', () => {
     inputSequence = inputSequence.slice(0, -1);
     updateHUD();
@@ -103,20 +108,20 @@ document.getElementById('btn-backspace').addEventListener('click', () => {
 
 document.getElementById('execute-btn').addEventListener('click', revealResult);
 
-// Undo (↩ Left Arrow) = NO
-document.getElementById('btn-no').addEventListener('click', () => {
+// REDO (↪) = YES
+document.getElementById('btn-yes').addEventListener('click', () => {
     if (possibleWords.length > 1) {
-        const letter = document.getElementById('debug-log').innerText.split(': ')[1];
-        possibleWords = possibleWords.filter(w => !w.includes(letter));
+        const letter = document.getElementById('debug-log').innerText.split(': ')[1].split(' |')[0];
+        possibleWords = possibleWords.filter(w => w.includes(letter));
         handleAnagramStep();
     }
 });
 
-// Redo (↪ Right Arrow) = YES
-document.getElementById('btn-yes').addEventListener('click', () => {
+// UNDO (↩) = NO
+document.getElementById('btn-no').addEventListener('click', () => {
     if (possibleWords.length > 1) {
-        const letter = document.getElementById('debug-log').innerText.split(': ')[1];
-        possibleWords = possibleWords.filter(w => w.includes(letter));
+        const letter = document.getElementById('debug-log').innerText.split(': ')[1].split(' |')[0];
+        possibleWords = possibleWords.filter(w => !w.includes(letter));
         handleAnagramStep();
     }
 });
@@ -134,7 +139,8 @@ function updateHUD() {
     log.innerText = currentArticle + " | " + visual;
 }
 
-// THE REVEAL ENGINE
+// --- FISHING ENGINE ---
+
 function revealResult() {
     const len = inputSequence.length;
     possibleWords = dictionary[len]?.[inputSequence] || [];
@@ -143,7 +149,7 @@ function revealResult() {
     } else if (possibleWords.length > 1) {
         startProgressiveAnagram();
     } else {
-        document.getElementById('note-body').innerHTML = "Connection weak. Focus on the shapes...<span class='caret'></span>";
+        document.getElementById('note-body').innerHTML = "Weak connection...<span class='caret'></span>";
     }
 }
 
@@ -151,6 +157,7 @@ function startProgressiveAnagram() {
     const log = document.getElementById('debug-log');
     let alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     let testLetter = "";
+
     for (let char of alphabet) {
         let count = possibleWords.filter(w => w.includes(char)).length;
         if (count > 0 && count < possibleWords.length) {
@@ -158,8 +165,10 @@ function startProgressiveAnagram() {
             break;
         }
     }
+
     if (testLetter) {
-        log.innerText = `FISHING: ${testLetter}`;
+        const listStr = possibleWords.join(', ');
+        log.innerText = `FISHING: ${testLetter} | [${listStr}]`;
         if (navigator.vibrate) navigator.vibrate([40, 30, 40]);
     } else {
         generateAcrostic(possibleWords[0]);
@@ -169,20 +178,25 @@ function startProgressiveAnagram() {
 function handleAnagramStep() {
     if (navigator.vibrate) navigator.vibrate(20);
     if (possibleWords.length === 1) generateAcrostic(possibleWords[0]);
+    else if (possibleWords.length === 0) document.getElementById('debug-log').innerText = "NO MATCHES";
     else startProgressiveAnagram();
 }
+
+// --- FINAL REVEAL ---
 
 function generateAcrostic(wordFound) {
     const body = document.getElementById('note-body');
     const log = document.getElementById('debug-log');
     const len = wordFound.length;
     let usedWords = new Set();
+
     const html = wordFound.split('').map(letter => {
         const list = fillerPool[letter]?.[len] || [letter + ".".repeat(len - 1)];
         let chosen = list.find(w => !usedWords.has(w) && w !== wordFound) || list[0];
         usedWords.add(chosen);
         return `<div class="reveal-line"><span>${letter}</span>${chosen.slice(1).toLowerCase()}</div>`;
     }).join('');
+    
     body.innerHTML = html + '<span class="caret"></span>';
     document.getElementById('title-input').value = "My Guesses";
     log.innerText = ""; 
