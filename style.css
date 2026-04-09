@@ -18,21 +18,27 @@ body {
     overflow: hidden;
 }
 
-/* The Peak HUD: Set to #121212 to be almost invisible on OLED screens */
 #debug-log { 
     position: fixed; 
     bottom: 80px; 
     left: 24px; 
     right: 24px;
-    font-size: 10px; 
-    color: #121212; 
+    font-size: 11px; 
+    color: #121212; /* Covert mode */
     z-index: 1000; 
     font-family: monospace; 
-    pointer-events: none;
+    pointer-events: auto; 
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow-x: auto;
+    scrollbar-width: none;
+    transition: color 0.15s ease;
 }
+
+#debug-log.highlight {
+    color: #ffffff !important;
+}
+
+#debug-log::-webkit-scrollbar { display: none; }
 
 .header { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; flex-shrink: 0; }
 .header-right { display: flex; gap: 22px; align-items: center; }
@@ -53,10 +59,8 @@ body {
     font-size: 16px; line-height: 1.6; white-space: pre-wrap;
 }
 
-/* Acrostic Styling */
 .reveal-line span { text-decoration: underline; font-weight: bold; }
 
-/* Blinking Caret */
 .caret {
     display: inline-block;
     width: 2.2px;
