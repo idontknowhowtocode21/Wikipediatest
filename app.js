@@ -1,4 +1,9 @@
-// 1. CLOCK LOGIC (Runs first to show the app is "alive")
+/**
+ * WORDSMITH ULTIMATE ENGINE
+ * Restored: Positional Search, 4-Way Long Press, Appearance Sort, and Global Highlight.
+ */
+
+// 1. CLOCK LOGIC
 function updateTime() {
     const now = new Date();
     const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).toLowerCase();
@@ -10,7 +15,7 @@ function updateTime() {
 setInterval(updateTime, 10000);
 updateTime();
 
-// 2. DATA & STATE
+// 2. STATE & DATA
 let dictionary = {};
 let inputSequence = "";
 let currentArticle = "READY";
@@ -25,7 +30,6 @@ const shapeMap = {
     'B':2,'D':2,'G':2,'J':2,'P':2,'Q':2,'R':2,'U':2
 };
 
-// ACROSTIC FILLER POOL (4-15 letters)
 const fillerPool = {
     'A': {4:['AREA','ALSO'],5:['APPLE','ALIVE'],6:['ACTION','AROUND'],7:['AGAINST','AIRPORT'],8:['ABSOLUTE'],9:['ADVENTURE'],10:['APPEARANCE'],11:['AGRICULTURE'],12:['ARCHITECTURE'],13:['ACCOMMODATION'],14:['ADMINISTRATION'],15:['ACKNOWLEDGEABLE']},
     'B': {4:['BLUE','BACK'],5:['BOARD','BASIC'],6:['BEYOND','BEFORE'],7:['BETWEEN','BELIEVE'],8:['BOUNDARY'],9:['BEAUTIFUL'],10:['BACKGROUND'],11:['BENEFICIARY'],12:['BREAKTHROUGH'],13:['BREATHSTAKING'],14:['BIOREMEDIATION'],15:['BIOLUMINESCENCE']},
@@ -38,7 +42,7 @@ const fillerPool = {
     'I': {4:['IRON','INTO'],5:['IMAGE','INDEX'],6:['ISLAND','INSIDE'],7:['INSTEAD','IMPROVE'],8:['INTERNAL'],9:['IMPORTANT'],10:['INVESTMENT'],11:['INFORMATION'],12:['INTELLIGENCE'],13:['INTERNATIONAL'],14:['IDENTIFICATION'],15:['INTERPRETATIONS']},
     'J': {4:['JUST','JOIN'],5:['JOINT','JUDGE'],6:['JORDAN','JUNGLE'],7:['JOURNEY','JACKETS'],8:['JUNCTION'],9:['JUDGEMENT'],10:['JOURNALISM'],11:['JUSTIFIABLE'],12:['JUDICIOUSNESS'],13:['JUXTAPOSITION'],14:['JOCULARNESSES'],15:['JOURNEYMANSHIPS']},
     'K': {4:['KEEP','KNEW'],5:['KNOWN','KNOCK'],6:['KNIGHT','KANSAS'],7:['KITCHEN','KINGDOM'],8:['KEYBOARD'],9:['KNOWLEDGE'],10:['KINDNESSES'],11:['KALEIDOSCOP'],12:['KINDHEARTEDN'],13:['KINDHEARTEDLY'],14:['KINDHEARTEDNES'],15:['KINDHEARTEDNESS']},
-    'L': {4:['LONG','LAST'],5:['LIGHT','LARGE'],6:['LISTEN','LITTLE'],7:['LIBRARY','LOOKING'],8:['LOCATION'],9:['LANDSCAPE'],10:['LEADERSHIP'],11:['LEGISLATION'],12:['LONGSTANDING'],13:['LOGARITHMICALLY'],14:['LONGITUDINALLY'],15:['LEXICOGRAPHICAL']},
+    'L': {4:['LONG','LAST'],5:['LIGHT','LARGE'],6:['LISTEN','LITTLE'],7:['LIBRARY','LOOKING'],8:['LOCATION'],9:['LANDSCAPE'],10:['LEADERSHIP'],11:['LITERATURE'],12:['LONGSTANDING'],13:['LOGARITHMICALLY'],14:['LONGITUDINALLY'],15:['LEXICOGRAPHICAL']},
     'M': {4:['MOON','MAIN'],5:['MUSIC','MODEL'],6:['MEMORY','MOTHER'],7:['MESSAGE','MORNING'],8:['MOUNTAIN'],9:['MARKETING'],10:['MANAGEMENT'],11:['MATHEMATICS'],12:['MANUFACTURING'],13:['MICROBIOLOGY'],14:['MULTICULTURAL'],15:['MISINTERPRETATION']},
     'N': {4:['NEXT','NEAR'],5:['NIGHT','NEVER'],6:['NATURE','NUMBER'],7:['NETWORK','NOTHING'],8:['NEGATIVE'],9:['NEIGHBOR'],10:['NEWSPAPER'],11:['NATIONALITY'],12:['NOTIFICATION'],13:['NONCONFORMITY'],14:['NORTHEASTERNER'],15:['NIGHTMAREISHNES']},
     'O': {4:['OPEN','ONLY'],5:['OCEAN','ORDER'],6:['OBJECT','OFFICE'],7:['OFFICER','OUTSIDE'],8:['OPPOSITE'],9:['OPERATION'],10:['OCCASIONAL'],11:['OBSERVATION'],12:['ORGANIZATION'],13:['OBJECTIONABLE'],14:['OVERPRODUCTION'],15:['OVEREMPHASIZING']},
@@ -55,7 +59,7 @@ const fillerPool = {
     'Z': {4:['ZERO'],5:['ZONES'],6:['ZEBRAS'],7:['ZOOLOGY'],8:['ZEALOUSLY'],9:['ZEALOTRY'],10:['ZOOLOGICAL'],11:['ZEALOUSNESS'],12:['ZIGZAGGING'],13:['ZINCIFICATION'],14:['ZOOLOGICALLY'],15:['ZOOMORPHICWORDS']}
 };
 
-// --- CORE UTILS ---
+// --- DOM ELEMENTS ---
 const debugLog = document.getElementById('debug-log');
 const btnYes = document.getElementById('btn-yes');
 const btnNo = document.getElementById('btn-no');
@@ -69,24 +73,9 @@ document.body.addEventListener('touchstart', (e) => {
     debugLog.classList.add('highlight');
 });
 document.body.addEventListener('touchend', () => debugLog.classList.remove('highlight'));
+debugLog.addEventListener('touchstart', (e) => { e.stopPropagation(); debugLog.classList.add('highlight'); });
 
-// --- WAND LOGIC ---
-document.querySelector('.ai-magic').addEventListener('click', async () => {
-    try {
-        const text = await navigator.clipboard.readText();
-        if (text.includes("wikipedia.org/wiki/")) {
-            const slug = text.split("/wiki/")[1].split(/[#?]/)[0];
-            fetchWiki(slug);
-        }
-    } catch (e) {
-        const manualLink = prompt("Paste Wikipedia link:");
-        if (manualLink && manualLink.includes("/wiki/")) {
-            const slug = manualLink.split("/wiki/")[1].split(/[#?]/)[0];
-            fetchWiki(slug);
-        }
-    }
-});
-
+// --- SCRAPER ---
 async function fetchWiki(slug) {
     debugLog.innerText = "SYNCING...";
     try {
@@ -119,7 +108,7 @@ async function fetchWiki(slug) {
     } catch (e) { debugLog.innerText = "OFFLINE"; }
 }
 
-// --- LONG PRESS & FISHING ---
+// --- LONG PRESS LOGIC (RESTORED) ---
 const setupLongPress = (el, index) => {
     el.addEventListener('touchstart', () => {
         longPressTimer = setTimeout(() => {
@@ -132,14 +121,20 @@ const setupLongPress = (el, index) => {
     el.addEventListener('touchend', () => clearTimeout(longPressTimer));
 };
 
-setupLongPress(btnYes, 0); setupLongPress(btnNo, 1); 
-setupLongPress(btnSearch, 2); setupLongPress(btnExecute, 3);
+setupLongPress(btnYes, 0); 
+setupLongPress(btnNo, 1); 
+setupLongPress(btnSearch, 2); 
+setupLongPress(btnExecute, 3);
 
+// --- FISHING ENGINE (RESTORED POSITIONAL LOGIC) ---
 btnYes.addEventListener('click', () => {
     if (possibleWords.length > 1) {
         const action = getActiveAction();
-        if (action.type === 'positional') possibleWords = possibleWords.filter(w => w[action.pos] === action.letter);
-        else possibleWords = possibleWords.filter(w => w.includes(action.letter));
+        if (action.type === 'positional') {
+            possibleWords = possibleWords.filter(w => w[action.pos] === action.letter);
+        } else {
+            possibleWords = possibleWords.filter(w => w.includes(action.letter));
+        }
         noCount = 0;
         handleAnagramStep();
     }
@@ -148,8 +143,11 @@ btnYes.addEventListener('click', () => {
 btnNo.addEventListener('click', () => {
     if (possibleWords.length > 1) {
         const action = getActiveAction();
-        if (action.type === 'positional') possibleWords = possibleWords.filter(w => w[action.pos] !== action.letter);
-        else possibleWords = possibleWords.filter(w => !w.includes(action.letter));
+        if (action.type === 'positional') {
+            possibleWords = possibleWords.filter(w => w[action.pos] !== action.letter);
+        } else {
+            possibleWords = possibleWords.filter(w => !w.includes(action.letter));
+        }
         noCount++;
         handleAnagramStep();
     }
@@ -165,7 +163,23 @@ function getActiveAction() {
     return { letter: raw.split(': ')[1].split(' |')[0], type: 'standard' };
 }
 
-// --- INPUTS & REVEAL ---
+// --- CORE UI ---
+document.querySelector('.ai-magic').addEventListener('click', async () => {
+    try {
+        const text = await navigator.clipboard.readText();
+        if (text.includes("wikipedia.org/wiki/")) {
+            const slug = text.split("/wiki/")[1].split(/[#?]/)[0];
+            fetchWiki(slug);
+        }
+    } catch (e) {
+        const manualLink = prompt("Paste Wikipedia link:");
+        if (manualLink && manualLink.includes("/wiki/")) {
+            const slug = manualLink.split("/wiki/")[1].split(/[#?]/)[0];
+            fetchWiki(slug);
+        }
+    }
+});
+
 document.getElementById('btn-straight').addEventListener('click', () => handleInput(0));
 document.getElementById('btn-curved').addEventListener('click', () => handleInput(1));
 document.getElementById('btn-mixed').addEventListener('click', () => handleInput(2));
@@ -194,6 +208,7 @@ function updateHUD() {
     debugLog.innerText = currentArticle + " | " + visual;
 }
 
+// --- FISHING MODE RE-RESTORED ---
 function revealResult() {
     const len = inputSequence.length;
     noCount = 0;
@@ -205,10 +220,15 @@ function revealResult() {
 
 function startProgressiveAnagram() {
     const listStr = possibleWords.join(' | ');
+
+    // Pivot to Choice Mode
     if (possibleWords.length <= 3 || (noCount >= 2 && possibleWords.length === 4)) {
         debugLog.innerText = `CHOICE: ${listStr}`;
+        if (navigator.vibrate) navigator.vibrate([80, 80]);
         return;
     }
+
+    // Positional Elimination logic
     if (noCount >= 2) {
         let bestPos = -1, bestChar = "", maxOverlap = 0;
         for (let i = 0; i < possibleWords[0].length; i++) {
@@ -220,12 +240,20 @@ function startProgressiveAnagram() {
                 }
             }
         }
-        if (bestChar) { debugLog.innerText = `POSITION ${bestPos}: ${bestChar} | [${listStr}]`; return; }
+        if (bestChar) {
+            debugLog.innerText = `POSITION ${bestPos}: ${bestChar} | [${listStr}]`;
+            return;
+        }
     }
+
+    // Standard Fishing
     let alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ", testLetter = "";
     for (let char of alphabet) {
         let count = possibleWords.filter(w => w.includes(char)).length;
-        if (count > 0 && count < possibleWords.length) { testLetter = char; break; }
+        if (count > 0 && count < possibleWords.length) {
+            testLetter = char;
+            break;
+        }
     }
     if (testLetter) debugLog.innerText = `FISHING: ${testLetter} | [${listStr}]`;
     else generateAcrostic(possibleWords[0]);
