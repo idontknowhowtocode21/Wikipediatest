@@ -1,67 +1,118 @@
+/* Pixel-Perfect Replica of Target Screenshot (Dark Mode) */
+:root {
+    --bg-black: #000000;
+    --text-primary: #f2f2f3;
+    --text-meta: #7c8188;
+    --text-meta-faint: #4c525a;
+    --icon-grey: #a0a6ae;
+    --icon-dim: #70757c;
+    --magic-blue: #3d91f4;
+}
+
 body {
-    font-family: 'Roboto', sans-serif;
-    background: #ffffff;
+    font-family: 'Roboto', -apple-system, sans-serif;
+    font-weight: 300;
+    background: var(--bg-black);
+    color: var(--text-primary);
     margin: 0;
+    padding: 0;
     display: flex;
     flex-direction: column;
     height: 100vh;
     overflow: hidden;
+    letter-spacing: 0.3px;
 }
 
-#header {
-    display: flex;
-    align-items: center;
-    padding: 15px;
-    border-bottom: 1px solid #e0e0e0;
-}
-
-#back-icon {
-    font-size: 24px;
-    margin-right: 20px;
-    color: #5f6368;
-    cursor: pointer;
-}
-
-#title-input {
-    border: none;
-    outline: none;
-    font-size: 22px;
-    flex-grow: 1;
-    color: #202124;
-}
-
-#note-body {
-    border: none;
-    outline: none;
-    padding: 20px;
-    font-size: 16px;
-    flex-grow: 1;
-    line-height: 1.6;
-    color: #3c4043;
-    resize: none;
-}
-
-/* Secret Status Dot */
-#status-dot {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
+/* Placeholder for Top Status Bar (8:20 AM, 100%) */
+#os-status-bar {
+    height: 24px;
     background: transparent;
-    z-index: 100;
 }
 
+/* Secret Debug HUD (bottom left) - Now invisible to public */
 #debug-log {
     position: fixed;
     bottom: 5px;
     left: 10px;
-    font-size: 10px;
-    color: #cccccc; /* Very faint grey */
-    z-index: 100;
+    font-size: 8px;
+    color: var(--bg-black); /* Set to BG color to hide from spectator */
+    z-index: 200;
     font-family: monospace;
-    pointer-events: none; /* So it doesn't block your taps */
+}
+
+/* Top Action Bar (Back, Undo, Redo, Search, Done) */
+#top-toolbar {
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+}
+
+.icon {
+    font-size: 26px;
+    color: var(--icon-grey);
+    cursor: pointer;
+}
+
+#back-icon {
+    font-size: 30px;
+    margin-right: 20px;
+}
+
+#top-right-actions {
+    display: flex;
+    gap: 22px;
+}
+
+#top-right-actions .icon {
+    font-size: 22px;
+}
+
+/* Note Title Field (Thin Font, Light Text) */
+#title-wrapper {
+    padding: 10px 20px 0 20px;
+}
+
+#title-input {
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: inherit;
+    font-size: 26px;
+    font-weight: 300;
+    color: var(--text-primary);
+    width: 100%;
+}
+
+/* Meta Line (Date / No Category ▼) */
+#meta-info {
+    font-size: 13px;
+    color: var(--text-meta);
+    padding: 8px 20px;
+}
+
+#date-time {
+    margin-right: 8px;
+}
+
+/* Main Text Area */
+#body-wrapper {
+    flex-grow: 1;
+    display: flex;
+}
+
+#note-body {
+    flex-grow: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 5px 20px;
+    font-family: inherit;
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    resize: none;
 }
 
 /* Invisible Tap Overlay */
@@ -70,12 +121,33 @@ body {
     top: 150px;
     left: 0;
     width: 100%;
-    bottom: 0;
-    display: none; /* Only visible when length is set */
-    z-index: 10;
+    bottom: 60px; /* Leave room for bottom bar */
+    z-index: 50;
+    display: none;
 }
 
 .zone {
     flex: 1;
     height: 100%;
+}
+
+/* Bottom Editing Toolbar */
+#bottom-toolbar {
+    height: 56px;
+    background: #111111; /* Subtle bar background */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 30px;
+    border-top: 1px solid #1a1a1a;
+}
+
+.btm-icon {
+    font-size: 19px;
+    color: var(--icon-dim);
+}
+
+.btm-icon.spec-blue {
+    color: var(--magic-blue);
+    font-size: 21px;
 }
