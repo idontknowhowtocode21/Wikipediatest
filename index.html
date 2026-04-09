@@ -2,31 +2,49 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="mobile-web-app-capable" content="yes">
     <link rel="stylesheet" href="style.css">
     <title>Keep Notes</title>
 </head>
 <body>
 
-    <!-- The HUD readout at the bottom left -->
-<div id="debug-log">Ready</div>
+    <div id="os-status-bar"></div>
 
-    <!-- Small secret status indicator -->
-    <div id="status-dot"></div>
+    <div id="debug-log">Ready</div>
 
-    <div id="header">
-        <span id="back-icon">←</span>
-        <input type="text" id="title-input" placeholder="Title">
+    <div id="top-toolbar">
+        <span id="back-icon" class="icon">‹</span> <div id="top-right-actions">
+            <span class="icon">↩</span>
+            <span class="icon">↪</span>
+            <span class="icon">🔍</span>
+            <span class="icon">✓</span>
+        </div>
     </div>
 
-    <textarea id="note-body" placeholder="Note" spellcheck="false"></textarea>
+    <div id="title-wrapper">
+        <input type="text" id="title-input" placeholder="Title" spellcheck="false">
+    </div>
 
-    <!-- Invisible Tap Zones -->
-    <div id="tap-overlay">
-        <div class="zone" id="zone-0"></div> <!-- Straight -->
-        <div class="zone" id="zone-1"></div> <!-- Curved -->
-        <div class="zone" id="zone-2"></div> <!-- Mixed -->
+    <div id="meta-info">
+        <span id="date-time">Today 8:20 AM</span>
+        <span id="category">No category ▼</span>
+    </div>
+
+    <div id="body-wrapper">
+        <textarea id="note-body" placeholder="" spellcheck="false"></textarea>
+    </div>
+
+    <div id="tap-overlay" style="display:none;">
+        <div class="zone" id="zone-0"></div> <div class="zone" id="zone-1"></div> <div class="zone" id="zone-2"></div> </div>
+
+    <div id="bottom-toolbar">
+        <span class="btm-icon spec-blue">🪄</span>
+        <span class="btm-icon">A⃒</span>
+        <span class="btm-icon">☑</span>
+        <span class="btm-icon">🖼️</span>
+        <span class="btm-icon">⊕</span>
+        <span class="btm-icon">🎙️</span>
     </div>
 
     <script src="app.js"></script>
