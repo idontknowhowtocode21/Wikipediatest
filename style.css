@@ -17,6 +17,7 @@ body {
     flex-direction: column;
     overflow: hidden;
 }
+
 #debug-log { 
     position: fixed; 
     bottom: 85px; 
@@ -24,20 +25,17 @@ body {
     right: 24px;
     font-size: 11px; 
     color: #121212; 
-    z-index: 9999; /* Higher priority to ensure it's on top */
+    z-index: 9999; 
     font-family: monospace; 
-    pointer-events: all; /* Explicitly allow all touch interactions */
+    pointer-events: all; 
     white-space: nowrap;
-    overflow-x: auto; /* Enable horizontal scroll */
-    -webkit-overflow-scrolling: touch; /* Smooth scroll for iOS */
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     transition: color 0.15s ease;
 }
 
-#debug-log.highlight {
-    color: #ffffff !important;
-}
-
+#debug-log.highlight { color: #ffffff !important; }
 #debug-log::-webkit-scrollbar { display: none; }
 
 .header { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; flex-shrink: 0; }
@@ -71,10 +69,7 @@ body {
     animation: blink 1s step-end infinite;
 }
 
-@keyframes blink {
-    from, to { opacity: 1; }
-    50% { opacity: 0; }
-}
+@keyframes blink { from, to { opacity: 1; } 50% { opacity: 0; } }
 
 .footer { flex-shrink: 0; padding-bottom: env(safe-area-inset-bottom); background: var(--bg-black); }
 .toolbar { display: flex; justify-content: space-between; align-items: center; padding: 8px 24px 16px 24px; }
