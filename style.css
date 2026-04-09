@@ -1,6 +1,6 @@
 :root {
     --bg-black: #000000;
-    --text-white: #e3e3e3;
+    --text-white: #f2f2f3;
     --text-grey: #8d8d8d;
     --ai-blue: #7ca4ff;
     --icon-stroke: #e3e3e3;
@@ -21,7 +21,7 @@ body {
 
 #debug-log { 
     position: fixed; bottom: 80px; left: 24px; 
-    font-size: 11px; color: #151515; 
+    font-size: 11px; color: #121212; 
     z-index: 1000; font-family: monospace; pointer-events: none; 
 }
 
@@ -44,7 +44,7 @@ body {
     font-size: 16px; line-height: 1.6; white-space: pre-wrap;
 }
 
-#note-body div span { text-decoration: underline; font-weight: bold; }
+.reveal-line span { text-decoration: underline; font-weight: bold; }
 
 .caret {
     display: inline-block;
