@@ -1,14 +1,11 @@
-/**
- * Wikipedia Divination Engine (Android Optimized)
- * Features: Deep Scraping, Shape Hashing, Acrostic Reveal, and Text HUD
- */
+// Complete application logic for Wikipedia divination engine
 
-// --- CONFIGURATION ---
+// Configuration
 let dictionary = {};
 let currentWordLength = 0;
 let inputSequence = "";
 
-// Mapping for Capital Letter Shapes
+// Capital Shape Mapping
 // 0: Straight | 1: Curved | 2: Mixed
 const shapeMap = {
     'A':0,'E':0,'F':0,'H':0,'I':0,'K':0,'L':0,'M':0,'N':0,'T':0,'V':0,'W':0,'X':0,'Y':0,'Z':0,
@@ -16,145 +13,126 @@ const shapeMap = {
     'B':2,'D':2,'G':2,'J':2,'P':2,'Q':2,'R':2,'U':2
 };
 
-// Wordsmith-style Acrostic Filler Words
+// Wordsmith-style filler words for acrostic output
 const fillers = {
-    'A': 'Apple', 'B': 'Blue', 'C': 'Cold', 'D': 'Dark', 'E': 'East', 'F': 'Fire', 'G': 'Gold',
-    'H': 'High', 'I': 'Iron', 'J': 'Just', 'K': 'Kind', 'L': 'Long', 'M': 'Moon', 'N': 'Next',
-    'O': 'Open', 'P': 'Past', 'Q': 'Quiet', 'R': 'Red', 'S': 'Star', 'T': 'Time', 'U': 'Under',
-    'V': 'View', 'W': 'West', 'X': 'Xray', 'Y': 'Year', 'Z': 'Zero'
+    'A': 'Action', 'B': 'Blue', 'C': 'Case', 'D': 'Data', 'E': 'East', 'F': 'Field', 'G': 'Gold',
+    'H': 'Hold', 'I': 'Image', 'J': 'Join', 'K': 'Keep', 'L': 'Lock', 'M': 'Mode', 'N': 'Next',
+    'O': 'Open', 'P': 'Plan', 'Q': 'Quite', 'R': 'Right', 'S': 'Star', 'T': 'Task', 'U': 'User',
+    'V': 'Value', 'W': 'Work', 'X': 'Xray', 'Y': 'Year', 'Z': 'Zero'
 };
 
-// --- 1. WIKIPEDIA SCRAPER ---
+// System Fetcher
 async function fetchWiki(url) {
-    const log = document.getElementById('debug-log');
-    log.innerText = "Indexing...";
-
+    console.log("Fetching: " + url);
+    // You could update a hidden element with "Indexing..." but for now, we just rely on the final vibrate
     try {
-        // Extract the title from the URL
-        const title = url.split('wiki/')[1].split('#')[0];
+        const titleMatch = url.match(/\/wiki\/([^#?]+)/);
+        if (!titleMatch) throw new Error("Invalid URL format");
+        
+        const title = titleMatch[1];
         const api = `https://en.wikipedia.org/w/api.php?action=parse&page=${title}&prop=text&format=json&origin=*`;
         
         const response = await fetch(api);
         const data = await response.json();
         
-        if (data.error) throw new Error("Page not found");
+        if (data.error) throw new Error("Page not found on Wikipedia");
 
         const rawHtml = data.parse.text["*"];
         const tempDiv = document.createElement("div");
         tempDiv.innerHTML = rawHtml;
         
-        // Remove junk elements that mess up the word count
-        const toRemove = tempDiv.querySelectorAll('sup, .mw-editsection, table, script, style, .reflist');
+        // Sanitize the text (citations, tables, scripts)
+        const toRemove = tempDiv.querySelectorAll('sup, .mw-editsection, table, script, style');
         toRemove.forEach(el => el.remove());
 
         const cleanText = tempDiv.innerText.toUpperCase();
-        const words = cleanText.match(/[A-Z]{3,}/g); // Only words 3 letters or longer
+        const words = cleanText.match(/[A-Z]{4,}/g); // Words 4+ letters 
 
         dictionary = {}; // Reset previous session
         words.forEach(word => {
             const len = word.length;
             const hash = word.split('').map(char => shapeMap[char] ?? '').join('');
-            
             if (!dictionary[len]) dictionary[len] = {};
-            // We store the FIRST instance of this shape sequence found on the page
+            // Keep first instance found
             if (!dictionary[len][hash]) dictionary[len][hash] = word;
         });
 
-        // Visual confirmation of success
-        document.getElementById('status-dot').style.background = "#4CAF50"; 
-        log.innerText = "Ready";
-        if (navigator.vibrate) navigator.vibrate([50, 30, 50]); 
-
+        console.log("Index Complete");
+        if (navigator.vibrate) navigator.vibrate([100, 30, 100]); // Success buzz
     } catch (e) {
-        log.innerText = "Error!";
-        alert("Failed to index page. Ensure it's a valid Wikipedia link.");
+        console.error("Index failed: ", e);
+        // Maybe a subtle visual cue or default alert if in a non-performance setting
     }
 }
 
-// --- 2. UI HANDLERS ---
+// Event Listeners
 
-// Secret Input: Long press the back arrow to trigger the prompt
+// Secret: Long press back icon in the top-left to set URL
 document.getElementById('back-icon').addEventListener('contextmenu', (e) => {
     e.preventDefault();
-    const url = prompt("Paste Wikipedia Article Link:");
+    const url = prompt("Paste Wikipedia Link:");
     if (url) fetchWiki(url);
 });
 
-// Title Input: Typing a number sets the length and enables tap zones
+// Setting Length: Number in title enables mixed-mode taps
 document.getElementById('title-input').addEventListener('input', (e) => {
     const val = e.target.value;
-    const overlay = document.getElementById('tap-overlay');
-    const body = document.getElementById('note-body');
-    const log = document.getElementById('debug-log');
+    const tapOverlay = document.getElementById('tap-overlay');
+    const noteArea = document.getElementById('note-body');
 
-    if (!isNaN(val) && val !== "") {
+    if (!isNaN(val) && val !== "" && val !== "Title") {
         currentWordLength = parseInt(val);
-        overlay.style.display = "flex";
-        body.value = ""; // Clear notes area for performance
+        tapOverlay.style.display = "flex";
+        noteArea.value = "";
         inputSequence = "";
-        log.innerText = "Listening...";
     } else {
-        overlay.style.display = "none";
+        tapOverlay.style.display = "none";
     }
 });
 
-// --- 3. TAP ZONE LOGIC ---
-
-function updateHUD(type) {
-    const log = document.getElementById('debug-log');
-    const labels = ['S', 'C', 'M']; // Straight, Curved, Mixed
-    
-    if (inputSequence.length === 0) {
-        log.innerText = labels[type];
-    } else {
-        log.innerText += " " + labels[type];
-    }
-
-    if (navigator.vibrate) navigator.vibrate(25);
+// The Mixed Divination Mode
+function provideVibrationHUD(index) {
+    // We now rely purely on haptic feedback in a performance setting.
+    // Index 0: Straight | 1: Curved | 2: Mixed
+    const vibrations = [
+        [20], // Short buzz for Straight (S)
+        [20, 100, 20], // Pulse for Curved (C)
+        [80] // Longer rumble for Mixed (M)
+    ];
+    if (navigator.vibrate) navigator.vibrate(vibrations[index] || 10);
 }
 
 document.querySelectorAll('.zone').forEach((zone, index) => {
     zone.addEventListener('click', () => {
         if (currentWordLength === 0) return;
 
-        // Provide visual and haptic feedback
-        updateHUD(index);
+        // Provide Haptic peak
+        provideVibrationHUD(index);
         
-        // Append tap index (0, 1, or 2) to our sequence
+        // Append tap index (0, 1, or 2)
         inputSequence += index; 
 
-        // Auto-reveal once sequence length matches title number
+        // Auto-reveal
         if (inputSequence.length === currentWordLength) {
-            setTimeout(revealResult, 300);
+            // Very short delay to feel the last vibe before the reveal
+            setTimeout(revealWordAcrostic, 200);
         }
     });
 });
 
-// --- 4. THE REVEAL ---
-
-function revealResult() {
-    const wordFound = dictionary[currentWordLength]?.[inputSequence];
-    const body = document.getElementById('note-body');
-    const title = document.getElementById('title-input');
-    const log = document.getElementById('debug-log');
+// The Wordsmith-Style Reveal
+function revealWordAcrostic() {
+    const foundWord = dictionary[currentWordLength]?.[inputSequence];
+    const display = document.getElementById('note-body');
     
-    log.innerText = "Processing...";
-
-    if (wordFound) {
-        // Map each letter of the found word to a filler word
-        const acrostic = wordFound.split('').map(letter => {
-            return fillers[letter] || letter;
-        }).join('\n');
-
-        body.value = `Possibilities:\n\n${acrostic}\n\n(None of these correct?)`;
+    if (foundWord) {
+        const acrostic = foundWord.split('').map(letter => fillers[letter] || letter).join('\n');
+        display.value = `I'm seeing possibilities like...\n\n${acrostic}\n\nNot what you thought of? Check closer...`;
     } else {
-        body.value = "I'm having trouble focusing. Let's try visualizing the letters again.";
+        display.value = "Hmm. I'm having difficulty connecting. Visualise the shapes once more.";
     }
     
-    // Cleanup UI
     document.getElementById('tap-overlay').style.display = "none";
-    title.value = "My Guesses"; // Overwrite the number to mask method
-    currentWordLength = 0; // Reset for next use
-    
-    setTimeout(() => { log.innerText = "Ready"; }, 3000);
+    currentWordLength = 0; // Reset
+    if (navigator.vibrate) navigator.vibrate(50); // Small confirm buzz
 }
