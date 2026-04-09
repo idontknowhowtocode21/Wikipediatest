@@ -1,12 +1,22 @@
-// --- CLOCK & STATE ---
+/**
+ * WORDSMITH ULTIMATE PERFORMANCE ENGINE v8.0
+ * Features: Dual-Action Execute (Tap/Hold), Positional Pivot, 
+ * Appearance Sorting, Voice-Icon Peak, and Full Page Scrape.
+ */
+
+// --- 1. CLOCK LOGIC ---
 function updateTime() {
     const now = new Date();
     const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).toLowerCase();
     const meta = document.getElementById('meta-row');
-    if (meta) meta.innerHTML = `Today ${time} &nbsp;No category <svg style="width:12px;fill:#8d8d8d" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>`;
+    if (meta) {
+        meta.innerHTML = `Today ${time} &nbsp;No category <svg style="width:12px;fill:#8d8d8d" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>`;
+    }
 }
-setInterval(updateTime, 10000); updateTime();
+setInterval(updateTime, 10000);
+updateTime();
 
+// --- 2. STATE & DATA ---
 let dictionary = {};
 let inputSequence = "";
 let currentArticle = "READY";
@@ -14,6 +24,7 @@ let possibleWords = [];
 let wordOrderMap = [];
 let noCount = 0;
 let longPressTimer;
+let isLongPressAction = false;
 
 const shapeMap = {
     'A':0,'E':0,'F':0,'H':0,'I':0,'K':0,'L':0,'M':0,'N':0,'T':0,'V':0,'W':0,'X':0,'Y':0,'Z':0,
@@ -50,7 +61,7 @@ const fillerPool = {
     'Z': {4:['ZERO'], 5:['ZONES'], 6:['ZEBRAS'], 7:['ZOOLOGY'], 8:['ZEALOUSLY'], 12:['ZIGZAGGING']}
 };
 
-// --- DOM & REVEAL ---
+// --- 3. DOM ELEMENTS ---
 const debugLog = document.getElementById('debug-log');
 const btnNo = document.getElementById('btn-no');
 const btnYes = document.getElementById('btn-yes');
@@ -58,15 +69,26 @@ const btnSearch = document.getElementById('btn-search');
 const btnExecute = document.getElementById('execute-btn');
 const btnVoice = document.getElementById('btn-voice');
 
-// 1. HIGHLIGHT ON VOICE (Mic Icon)
-btnVoice.addEventListener('touchstart', (e) => { e.preventDefault(); debugLog.classList.add('highlight'); });
-btnVoice.addEventListener('touchend', () => { debugLog.classList.remove('highlight'); });
+// --- 4. PEAK HIGHLIGHT (Voice Icon) ---
+btnVoice.addEventListener('touchstart', (e) => { 
+    e.preventDefault(); 
+    debugLog.classList.add('highlight'); 
+});
+btnVoice.addEventListener('touchend', () => { 
+    debugLog.classList.remove('highlight'); 
+});
+debugLog.addEventListener('touchstart', (e) => { 
+    e.stopPropagation(); 
+    debugLog.classList.add('highlight'); 
+});
 
-// 2. LONG PRESS SELECTORS (Order: No=1, Yes=2, Search=3, Execute=4)
+// --- 5. LONG PRESS SELECTORS (No=1, Yes=2, Search=3, Execute=4) ---
 const setupLongPress = (el, index) => {
     el.addEventListener('touchstart', (e) => {
+        isLongPressAction = false;
         longPressTimer = setTimeout(() => {
             if (possibleWords.length >= index + 1) {
+                isLongPressAction = true;
                 if (navigator.vibrate) navigator.vibrate(100);
                 generateAcrostic(possibleWords[index]);
             }
@@ -75,18 +97,20 @@ const setupLongPress = (el, index) => {
     el.addEventListener('touchend', () => clearTimeout(longPressTimer));
 };
 
-setupLongPress(btnNo, 0); setupLongPress(btnYes, 1); 
-setupLongPress(btnSearch, 2); setupLongPress(btnExecute, 3);
+setupLongPress(btnNo, 0); 
+setupLongPress(btnYes, 1); 
+setupLongPress(btnSearch, 2); 
+setupLongPress(btnExecute, 3);
 
-// 3. SCRAPER
+// --- 6. SCRAPER ---
 document.querySelector('.ai-magic').addEventListener('click', async () => {
     try {
         const text = await navigator.clipboard.readText();
-        if (text.includes("/wiki/")) {
-            const slug = text.split("/wiki/")[1].split(/[#?]/)[0];
-            fetchWiki(slug);
-        }
-    } catch (e) { const link = prompt("Paste wiki link:"); if (link) fetchWiki(link.split("/wiki/")[1].split(/[#?]/)[0]); }
+        if (text.includes("/wiki/")) fetchWiki(text.split("/wiki/")[1].split(/[#?]/)[0]);
+    } catch (e) { 
+        const link = prompt("Paste wiki link:"); 
+        if (link && link.includes("/wiki/")) fetchWiki(link.split("/wiki/")[1].split(/[#?]/)[0]); 
+    }
 });
 
 async function fetchWiki(slug) {
@@ -114,8 +138,9 @@ async function fetchWiki(slug) {
     } catch (e) { debugLog.innerText = "OFFLINE"; }
 }
 
-// 4. FISHING & UI
+// --- 7. FISHING ACTIONS ---
 btnYes.addEventListener('click', () => {
+    if (isLongPressAction) return; 
     if (possibleWords.length > 1) {
         const action = getActiveAction();
         if (action.type === 'positional') possibleWords = possibleWords.filter(w => w[action.pos] === action.letter);
@@ -125,6 +150,7 @@ btnYes.addEventListener('click', () => {
 });
 
 btnNo.addEventListener('click', () => {
+    if (isLongPressAction) return;
     if (possibleWords.length > 1) {
         const action = getActiveAction();
         if (action.type === 'positional') possibleWords = possibleWords.filter(w => w[action.pos] !== action.letter);
@@ -143,6 +169,7 @@ function getActiveAction() {
     return { letter: raw.split(': ')[1].split(' |')[0], type: 'standard' };
 }
 
+// --- 8. UI HANDLERS ---
 document.getElementById('btn-straight').addEventListener('click', () => handleInput(0));
 document.getElementById('btn-curved').addEventListener('click', () => handleInput(1));
 document.getElementById('btn-mixed').addEventListener('click', () => handleInput(2));
@@ -151,11 +178,19 @@ document.getElementById('back-icon').addEventListener('click', () => {
     inputSequence = ""; document.getElementById('note-body').innerHTML = ""; 
     document.getElementById('title-input').value = ""; debugLog.innerText = currentArticle; possibleWords = [];
 });
-btnExecute.addEventListener('click', revealResult);
+
+// Dual Action Execute
+btnExecute.addEventListener('click', () => {
+    if (!isLongPressAction) {
+        revealResult();
+    }
+    isLongPressAction = false; 
+});
 
 function handleInput(val) { inputSequence += val; if (navigator.vibrate) navigator.vibrate(25); updateHUD(); }
 function updateHUD() { debugLog.innerText = currentArticle + " | " + inputSequence.split('').map(i => ['S','C','M'][i]).join(' '); }
 
+// --- 9. FISHING ENGINE ---
 function revealResult() {
     const len = inputSequence.length; noCount = 0;
     possibleWords = dictionary[len]?.[inputSequence] || [];
@@ -195,6 +230,7 @@ function startProgressiveAnagram() {
 
 function handleAnagramStep() { if (possibleWords.length === 1) generateAcrostic(possibleWords[0]); else startProgressiveAnagram(); }
 
+// --- 10. ACROSTIC GENERATION ---
 function generateAcrostic(wordFound) {
     const body = document.getElementById('note-body');
     const len = wordFound.length; let usedWords = new Set();
