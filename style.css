@@ -2,9 +2,8 @@
     --bg-black: #000000;
     --text-white: #f2f2f3;
     --text-grey: #8d8d8d;
-    --ai-blue: #7ca4ff;
-    --icon-stroke: #e3e3e3;
     --caret-color: #916945;
+    --ai-blue: #7ca4ff;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
@@ -19,15 +18,25 @@ body {
     overflow: hidden;
 }
 
+/* The Peak HUD: Set to #121212 to be almost invisible on OLED screens */
 #debug-log { 
-    position: fixed; bottom: 80px; left: 24px; 
-    font-size: 11px; color: #121212; 
-    z-index: 1000; font-family: monospace; pointer-events: none; 
+    position: fixed; 
+    bottom: 80px; 
+    left: 24px; 
+    right: 24px;
+    font-size: 10px; 
+    color: #121212; 
+    z-index: 1000; 
+    font-family: monospace; 
+    pointer-events: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .header { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; flex-shrink: 0; }
 .header-right { display: flex; gap: 22px; align-items: center; }
-.nav-icon { width: 22px; height: 22px; fill: none; stroke: var(--icon-stroke); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; cursor: pointer; }
+.nav-icon { width: 22px; height: 22px; fill: none; stroke: #e3e3e3; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; cursor: pointer; }
 
 .content { flex: 1; padding: 10px 24px; display: flex; flex-direction: column; }
 .note-title-input {
@@ -44,8 +53,10 @@ body {
     font-size: 16px; line-height: 1.6; white-space: pre-wrap;
 }
 
+/* Acrostic Styling */
 .reveal-line span { text-decoration: underline; font-weight: bold; }
 
+/* Blinking Caret */
 .caret {
     display: inline-block;
     width: 2.2px;
@@ -63,6 +74,6 @@ body {
 
 .footer { flex-shrink: 0; padding-bottom: env(safe-area-inset-bottom); background: var(--bg-black); }
 .toolbar { display: flex; justify-content: space-between; align-items: center; padding: 8px 24px 16px 24px; }
-.tool-svg { width: 24px; height: 24px; fill: var(--icon-stroke); cursor: pointer; }
+.tool-svg { width: 24px; height: 24px; fill: #e3e3e3; cursor: pointer; }
 .ai-magic { fill: var(--ai-blue); }
 .home-pill { width: 120px; height: 4px; background-color: #ffffff; border-radius: 100px; margin: 0 auto 10px auto; opacity: 0.8; }
