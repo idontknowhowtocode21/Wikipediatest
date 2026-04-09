@@ -1,23 +1,13 @@
-/**
- * WORDSMITH ENGINE v3.0
- * Features: Deep Wiki Scraping, Clipboard Auto-Snatch, 
- * Physical Icon Mapping, and 4-12 Length Acrostic Engine.
- */
-
 let dictionary = {};
 let inputSequence = "";
 let currentArticle = "Ready";
 
-// Shape Mapping (0: Straight, 1: Curved, 2: Mixed)
 const shapeMap = {
     'A':0,'E':0,'F':0,'H':0,'I':0,'K':0,'L':0,'M':0,'N':0,'T':0,'V':0,'W':0,'X':0,'Y':0,'Z':0,
     'C':1,'O':1,'S':1,
     'B':2,'D':2,'G':2,'J':2,'P':2,'Q':2,'R':2,'U':2
 };
 
-// --- THE MASTER DICTIONARY (Lengths 4-12) ---
-// Note: Only a sample is shown here for space, but you should expand this 
-// so every letter has a word for every length (4,5,6,7,8,9,10,11,12).
 const fillerWords = {
     'A': {4:'AREA', 5:'APPLE', 6:'ACTION', 7:'AGAINST', 8:'ABSOLUTE', 9:'ADVENTURE', 10:'APPEARANCE', 11:'AGRICULTURE', 12:'ARCHITECTURE'},
     'B': {4:'BLUE', 5:'BOARD', 6:'BEYOND', 7:'BETWEEN', 8:'BOUNDARY', 9:'BEAUTIFUL', 10:'BACKGROUND', 11:'BENEFICIARY', 12:'BREAKTHROUGH'},
@@ -47,23 +37,16 @@ const fillerWords = {
     'Z': {4:'ZERO', 5:'ZONES', 6:'ZEBRAS', 7:'ZOOLOGY', 8:'ZEALOUSLY', 9:'ZEALOTRY', 10:'ZOOLOGICAL', 11:'ZEALOUSNESS', 12:'ZIGZAGGING'}
 };
 
-// --- CLIPBOARD & SCRAPING ENGINE ---
-
 async function checkClipboard() {
     try {
         const text = await navigator.clipboard.readText();
         if (text.includes("wikipedia.org/wiki/")) {
             const slug = text.split("/wiki/")[1].split(/[#?]/)[0];
-            if (slug !== currentArticle) {
-                fetchWiki(slug);
-            }
+            if (slug !== currentArticle) fetchWiki(slug);
         }
-    } catch (e) {
-        // Silent fail if permission not granted yet
-    }
+    } catch (e) {}
 }
 
-// Check every time user taps screen or app is focused
 window.addEventListener('focus', checkClipboard);
 document.body.addEventListener('click', checkClipboard, { once: false });
 
@@ -71,48 +54,34 @@ async function fetchWiki(slug) {
     const log = document.getElementById('debug-log');
     currentArticle = slug;
     log.innerText = "INDEXING...";
-
     try {
         const response = await fetch(`https://en.wikipedia.org/w/api.php?action=parse&page=${slug}&prop=text&format=json&origin=*`);
         const data = await response.json();
-        
         const tempDiv = document.createElement("div");
         tempDiv.innerHTML = data.parse.text["*"];
         tempDiv.querySelectorAll('sup, .mw-editsection, table, script, style').forEach(el => el.remove());
-
         const words = tempDiv.innerText.toUpperCase().match(/[A-Z]{4,12}/g); 
         dictionary = {};
-        
         words.forEach(word => {
-            const len = word.length;
             const hash = word.split('').map(char => shapeMap[char] ?? '').join('');
-            if (!dictionary[len]) dictionary[len] = {};
-            if (!dictionary[len][hash]) dictionary[len][hash] = word;
+            if (!dictionary[word.length]) dictionary[word.length] = {};
+            if (!dictionary[word.length][hash]) dictionary[word.length][hash] = word;
         });
-
-        const cleanTitle = decodeURIComponent(slug).replace(/_/g, ' ');
-        log.innerText = cleanTitle;
+        log.innerText = decodeURIComponent(slug).replace(/_/g, ' ').toUpperCase();
         if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
-    } catch (e) {
-        log.innerText = "ERROR LOADING";
-    }
+    } catch (e) { log.innerText = "ERROR"; }
 }
 
-// --- BUTTON INTERACTION ---
-
-document.getElementById('btn-straight').addEventListener('click', () => handleInput(0, 'S'));
-document.getElementById('btn-curved').addEventListener('click', () => handleInput(1, 'C'));
-document.getElementById('btn-mixed').addEventListener('click', () => handleInput(2, 'M'));
-
+document.getElementById('btn-straight').addEventListener('click', () => handleInput(0));
+document.getElementById('btn-curved').addEventListener('click', () => handleInput(1));
+document.getElementById('btn-mixed').addEventListener('click', () => handleInput(2));
 document.getElementById('btn-backspace').addEventListener('click', () => {
     inputSequence = inputSequence.slice(0, -1);
-    if (navigator.vibrate) navigator.vibrate(10);
     updateHUD();
 });
-
 document.getElementById('execute-btn').addEventListener('click', revealResult);
 
-function handleInput(val, label) {
+function handleInput(val) {
     inputSequence += val;
     if (navigator.vibrate) navigator.vibrate(25);
     updateHUD();
@@ -124,38 +93,24 @@ function updateHUD() {
     document.getElementById('debug-log').innerText = (currentArticle + " | " + visual).toUpperCase();
 }
 
-// --- REVEAL ENGINE ---
-
 function revealResult() {
     const len = inputSequence.length;
     const wordFound = dictionary[len]?.[inputSequence];
     const body = document.getElementById('note-body');
-    const titleField = document.getElementById('title-input');
-
     if (wordFound) {
-        const html = wordFound.split('').map(letter => {
-            // Pick word from our expanded list based on length
+        body.innerHTML = wordFound.split('').map(letter => {
             const displayWord = fillerWords[letter][len] || (letter + "...");
-            return `<div class="reveal-line"><span>${letter}</span>${displayWord.slice(1).toLowerCase()}</div>`;
+            return `<div><span>${letter}</span>${displayWord.slice(1).toLowerCase()}</div>`;
         }).join('');
-        
-        body.innerHTML = html;
-        titleField.value = "My Guesses";
-    } else {
-        body.innerText = "The image is blurry. Focus on the letter shapes again...";
+        document.getElementById('title-input').value = "My Guesses";
     }
-    
-    // Reset for next round
     inputSequence = "";
 }
 
-// Update time display automatically
 function updateTime() {
     const now = new Date();
     const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).toLowerCase();
     const meta = document.getElementById('meta-row');
-    if (meta) {
-        meta.innerHTML = `Today ${time} &nbsp;No category <svg class="dropdown-svg" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>`;
-    }
+    if (meta) meta.innerHTML = `Today ${time} &nbsp;No category <svg class="dropdown-svg" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>`;
 }
 updateTime();
