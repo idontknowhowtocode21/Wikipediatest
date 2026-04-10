@@ -17,7 +17,7 @@ const shapeMap = {
 };
 
 const debugLog = document.getElementById('debug-log');
-const btnTick = document.getElementById('execute-btn'); // Top Right
+const btnNo = document.getElementById('btn-no'); // Top Right
 const btnChecklist = document.querySelector('.toolbar svg:nth-child(5)'); // Bottom Checklist
 
 const vibrate = (ms = 30) => { if (navigator.vibrate) navigator.vibrate(ms); };
