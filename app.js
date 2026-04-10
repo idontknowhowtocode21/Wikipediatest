@@ -1,5 +1,6 @@
-/** * WORDSMITH ENGINE v8.2 
- * Tiered Fishing (Standard -> Positional -> Array List)
+/** * WORDSMITH ENGINE v8.3 
+ * Controls: Checklist (Bottom) = Backspace | Tick (Top) = Execute
+ * Spaced Peak Display
  */
 
 let dictionary = {};
@@ -8,7 +9,6 @@ let currentArticle = "READY";
 let possibleWords = [];
 let noCount = 0;
 let longPressTimer;
-let isLongPressAction = false;
 
 const shapeMap = {
     'A':0,'E':0,'F':0,'H':0,'I':0,'K':0,'L':0,'M':0,'N':0,'T':0,'V':0,'W':0,'X':0,'Y':0,'Z':0,
@@ -17,20 +17,13 @@ const shapeMap = {
 };
 
 const debugLog = document.getElementById('debug-log');
-const btnBackExec = document.getElementById('btn-backspace-exec');
+const btnTick = document.getElementById('execute-btn'); // Top Right
+const btnChecklist = document.querySelector('.toolbar svg:nth-child(5)'); // Bottom Checklist
 
 const vibrate = (ms = 30) => { if (navigator.vibrate) navigator.vibrate(ms); };
 
-// --- UI RESET & TIME ---
-function updateTime() {
-    const now = new Date();
-    const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).toLowerCase();
-    document.getElementById('meta-row').innerHTML = `Today ${time} &nbsp;No category`;
-}
-updateTime();
-
-// Back Arrow Reset (Retains Wiki)
-document.getElementById('btn-reset').addEventListener('touchstart', (e) => {
+// --- RESET LOGIC ---
+document.getElementById('back-icon').addEventListener('touchstart', (e) => {
     e.preventDefault();
     inputSequence = ""; possibleWords = []; noCount = 0;
     document.getElementById('note-body').innerHTML = "";
@@ -46,31 +39,31 @@ document.getElementById('btn-curved').addEventListener('touchstart', (e) => { e.
 document.getElementById('btn-mixed').addEventListener('touchstart', (e) => { e.preventDefault(); handleIn('2'); });
 
 function updateHUD() {
-    const display = inputSequence.replace(/0/g,'S').replace(/1/g,'C').replace(/2/g,'M');
+    // Added space joiner for readability: "S C M"
+    const display = inputSequence.split('').map(char => ['S','C','M'][char]).join(' ');
     debugLog.innerText = `${currentArticle} | ${display}`;
 }
 
-// Checkmark: Tap=Backspace, Hold=Execute
-btnBackExec.addEventListener('touchstart', (e) => {
+// BOTTOM CHECKLIST: Backspace
+btnChecklist.addEventListener('touchstart', (e) => {
     e.preventDefault();
-    isLongPressAction = false;
-    longPressTimer = setTimeout(() => {
-        isLongPressAction = true;
-        vibrate(80);
-        executeSearch();
-    }, 700);
-});
-
-btnBackExec.addEventListener('touchend', () => {
-    clearTimeout(longPressTimer);
-    if (!isLongPressAction && inputSequence.length > 0) {
+    if (inputSequence.length > 0) {
         inputSequence = inputSequence.slice(0, -1);
         updateHUD();
         vibrate(20);
     }
 });
 
-// --- SCRAPER ---
+// TOP TICK: Execute
+btnTick.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if (inputSequence.length > 0) {
+        vibrate(80);
+        executeSearch();
+    }
+});
+
+// --- SCRAPER (Same robust logic) ---
 document.querySelector('.ai-magic').addEventListener('click', async () => {
     let link = ""; try { link = await navigator.clipboard.readText(); } catch(e){}
     if (!link.includes("/wiki/")) link = prompt("Wiki Link:");
@@ -97,7 +90,7 @@ async function fetchWiki(slug) {
     } catch(e) { debugLog.innerText = "SYNC ERROR"; }
 }
 
-// --- TIERED FISHING ENGINE ---
+// --- FISHING ENGINE ---
 function executeSearch() {
     const len = inputSequence.length;
     possibleWords = dictionary[len]?.[inputSequence] || [];
@@ -111,15 +104,13 @@ function processFishing() {
 
     const wordList = `[${possibleWords.join(', ')}]`;
 
-    // TIER 3: Array List (If noCount >= 3 or few words left)
     if (noCount >= 3 || possibleWords.length <= 4) {
         debugLog.innerText = `LIST: ${wordList}`;
         return;
     }
 
-    // TIER 2: Positional Pivot (After 2 No's)
     if (noCount === 2) {
-        let bestPos = -1, bestChar = "", maxDiff = 0;
+        let bestPos = -1, bestChar = "";
         for (let i = 0; i < possibleWords[0].length; i++) {
             let counts = {};
             possibleWords.forEach(w => counts[w[i]] = (counts[w[i]] || 0) + 1);
@@ -134,7 +125,6 @@ function processFishing() {
         return;
     }
 
-    // TIER 1: Standard Split-Half
     const alpha = "ETAOINSRHDLUCMFYWGPBVKXQJZ";
     let bestLetter = "";
     for (let char of alpha) {
